@@ -1977,44 +1977,16 @@ function App() {
         </article>
       ) : (
         <article className="profile-paper profile-page">
-          <p className="auth-kicker">User Profile</p>
-          <h1>{profile?.callsign || 'Pilot'}</h1>
-          <button type="button" className="auth-submit profile-more-button" onClick={openMoreOverlay}>
-            More
-          </button>
-          <p className="auth-subhead">
-            Personal command profile for your Star Citizen operations.
-          </p>
-          <div className="profile-grid">
-            <div>
-              <span>Callsign</span>
-              <strong>{profile?.callsign ?? 'Unknown'}</strong>
-            </div>
-            <div>
-              <span>Role</span>
-              <strong>{profile?.role ?? 'Salvage and Mining Operator'}</strong>
-            </div>
-            <div>
-              <span>Ship</span>
-              <select
-                value={profile?.ship ?? ''}
-                onChange={(event) => {
-                  void selectPrimaryShip(event.target.value)
-                }}
-              >
-                <option value="">None selected</option>
-                {ownedShipNames.map((shipName) => (
-                  <option key={shipName} value={shipName}>
-                    {shipName}
-                  </option>
-                ))}
-              </select>
-              {shipUpdateError ? <p className="auth-error">{shipUpdateError}</p> : null}
-            </div>
-          </div>
+          <div className="profile-header-row">
+            <section className="profile-header-copy">
+              <p className="auth-kicker">User Profile</p>
+              <h1>{profile?.callsign || 'Pilot'}</h1>
+              <button type="button" className="auth-submit profile-more-button" onClick={openMoreOverlay}>
+                More
+              </button>
+            </section>
 
-          <div className="overview-grid">
-            <section className="financial-section">
+            <section className="financial-section financial-summary-section">
               <div className="financial-header">
                 <h2>Financial</h2>
                 <button type="button" className="auth-submit add-ship-button" onClick={openFinancialOverlay}>
@@ -2027,30 +1999,57 @@ function App() {
                   <strong>{toAuec(profile?.financial.currentBalance ?? 0)}</strong>
                 </div>
                 <div>
-                  <span>Total Earnings</span>
-                  <strong>{toAuec(profile?.financial.totalEarnings ?? 0)}</strong>
-                </div>
-                <div>
-                  <span>Total Costs</span>
-                  <strong>{toAuec(profile?.financial.totalCosts ?? 0)}</strong>
-                </div>
-                <div>
                   <span>Net Profit</span>
                   <strong>
                     {toAuec((profile?.financial.totalEarnings ?? 0) - (profile?.financial.totalCosts ?? 0))}
                   </strong>
                 </div>
                 <div>
-                  <span>Session Expenses</span>
-                  <strong>{toAuec(sessionCost)}</strong>
+                  <span>Total Costs</span>
+                  <strong>{toAuec(profile?.financial.totalCosts ?? 0)}</strong>
                 </div>
                 <div>
-                  <span>Session Profit</span>
-                  <strong>{toAuec(netProfit)}</strong>
+                  <span>Total Earnings</span>
+                  <strong>{toAuec(profile?.financial.totalEarnings ?? 0)}</strong>
                 </div>
               </div>
             </section>
+          </div>
 
+          <section className="profile-command-section">
+            <p className="auth-subhead">
+              Personal command profile for your Star Citizen operations.
+            </p>
+            <div className="profile-grid">
+              <div>
+                <span>Callsign</span>
+                <strong>{profile?.callsign ?? 'Unknown'}</strong>
+              </div>
+              <div>
+                <span>Role</span>
+                <strong>{profile?.role ?? 'Salvage and Mining Operator'}</strong>
+              </div>
+              <div>
+                <span>Ship</span>
+                <select
+                  value={profile?.ship ?? ''}
+                  onChange={(event) => {
+                    void selectPrimaryShip(event.target.value)
+                  }}
+                >
+                  <option value="">None selected</option>
+                  {ownedShipNames.map((shipName) => (
+                    <option key={shipName} value={shipName}>
+                      {shipName}
+                    </option>
+                  ))}
+                </select>
+                {shipUpdateError ? <p className="auth-error">{shipUpdateError}</p> : null}
+              </div>
+            </div>
+          </section>
+
+          <div className="overview-grid">
             <section className="sessions-section">
               <div className="sessions-header">
                 <h2>Sessions</h2>

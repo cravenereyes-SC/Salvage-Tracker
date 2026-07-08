@@ -185,6 +185,31 @@
   letter-spacing: 0.08em;
 }
 
+.profile-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.95fr);
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.profile-header-copy {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.profile-header-copy h1 {
+  margin: 0;
+}
+
+.profile-command-section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.profile-command-section .auth-subhead {
+  margin: 0;
+}
+
 .profile-grid {
   display: grid;
   gap: 0.5rem;
@@ -252,17 +277,23 @@
 }
 
 .financial-section {
-  margin-top: 0.5rem;
+  margin-top: 0;
   display: grid;
-  gap: 0.55rem;
-  border: 1px solid var(--panel-border);
+  gap: 0.5rem;
+  border: 0;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 0.65rem;
+  background: transparent;
+  padding: 0.55rem;
+  align-self: start;
+}
+
+.financial-summary-section {
+  max-width: 360px;
+  justify-self: end;
 }
 
 .sessions-section {
-  margin-top: 0.5rem;
+  margin-top: 0;
   display: grid;
   gap: 0.55rem;
   border: 1px solid var(--panel-border);
@@ -446,8 +477,9 @@
 
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.6rem;
+  align-items: start;
 }
 
 .financial-header {
@@ -464,8 +496,20 @@
 
 .financial-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.45rem;
+}
+
+.financial-summary-section .financial-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.financial-summary-section .financial-grid div:first-child {
+  grid-column: 1 / -1;
+}
+
+.financial-summary-section .financial-grid div:first-child strong {
+  white-space: nowrap;
 }
 
 .sessions-grid {
@@ -748,6 +792,15 @@
 
   .profile-grid {
     grid-template-columns: 1fr;
+  }
+
+  .profile-header-row {
+    grid-template-columns: 1fr;
+  }
+
+  .financial-summary-section {
+    max-width: none;
+    justify-self: stretch;
   }
 
   .owned-ships-list {
