@@ -27,6 +27,13 @@
       "currentBalance": 1000000000,
       "totalEarnings": 0,
       "totalCosts": 0
-    }
+    },
+    "sessions": {
+      "totalSessions": 13,
+      "salvageSessions": 11,
+      "miningSessions": 2,
+      "totalProfit": 0
+    },
+    "activeWorkOrders": []
   }
 ]

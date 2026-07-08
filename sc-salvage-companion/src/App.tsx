@@ -25,6 +25,33 @@ type SessionMetrics = {
   totalProfit: number
 }
 
+type ActiveWorkOrder = {
+  id: string
+  location: string
+  type: string
+  startedAt: number
+  functioningTimeMinutes: number
+}
+
+type SessionExpense = {
+  id: string
+  type: string
+  cost: number
+  location?: string
+  processingType?: string
+  functioningTimeMinutes?: number
+  startedAt?: number
+}
+
+type ActiveSession = {
+  id: string
+  type: (typeof SESSION_TYPES)[number]
+  startedAt: number
+  expenses: SessionExpense[]
+}
+
+type SessionTableSortKey = 'type' | 'description' | 'amount' | 'time'
+
 type UserProfile = {
   callsign: string
   email: string
@@ -34,6 +61,7 @@ type UserProfile = {
   ownedShips: OwnedShip[]
   financial: FinancialProfile
   sessions: SessionMetrics
+  activeWorkOrders: ActiveWorkOrder[]
 }
 
 type AuthSession = {
@@ -135,6 +163,70 @@ const SHIP_FUNCTION_MAP: Record<string, string> = {
 
 const ROLE_CHOICES = ['Salvager', 'Miner', 'Hybrid Operator', 'Fleet Lead']
 
+const WORK_ORDER_TYPES = ['Salvage', 'Mining', 'Cargo', 'Recovery', 'Survey']
+const WORK_ORDER_DURATION_MAP: Record<(typeof WORK_ORDER_TYPES)[number], number> = {
+  Salvage: 180,
+  Mining: 120,
+  Cargo: 90,
+  Recovery: 60,
+  Survey: 45,
+}
+const SESSION_TYPES = ['Salvage', 'Mining'] as const
+const EXPENSE_TYPES = ['Fuel', 'Repairs', 'Crew and Supplies', 'Ammo', 'Insurance', 'Landing and Docking', 'Work Orders'] as const
+
+const REFINERY_STATION_OPTIONS = [
+  'ARC-L1 Wide Forest Station',
+  'ARC-L2 Latham Mining Complex',
+  'ARC-L3 Shubin Mining Facility',
+  'ARC-L4 Weeping Cove Station',
+  'ARC-L5 Trident Station',
+  'CRU-L1 Ambitious Dream Station',
+  'CRU-L4 Shubin Mining Facility',
+  'CRU-L5 Sieres Station',
+  'HUR-L1 Green Glade Station',
+  'HUR-L2 Faithful Dream Station',
+  'HUR-L3 Long Forest Station',
+  'HUR-L4 Grin Station',
+  'HUR-L5 Everus Harbor',
+  'MIC-L1 Benson Mining Outpost',
+  'MIC-L2 Long Forest Station',
+  'MIC-L3 Shubin Mining Facility',
+  'MIC-L4 Shubin Mining Facility',
+  'MIC-L5 Shubin Mining Facility',
+  'POI-L1 Shubin Mining Facility',
+  'POI-L2 Redwind Station',
+  'POI-L3 Shubin Mining Facility',
+  'PYR-L1 Ruin Station',
+] as const
+
+const WORK_ORDER_PROCESSING_TYPES = [
+  'Dinyx Solventation',
+  'Electrostar Solventation',
+  'Ferron Exchange',
+  'Gaskin Process',
+  'Pyrometric Chromalysis',
+  'Sinder Molecularization',
+] as const
+
+const WORK_ORDER_PROCESSING_MAP: Record<(typeof WORK_ORDER_PROCESSING_TYPES)[number], { cost: number; functioningTimeMinutes: number }> = {
+  'Dinyx Solventation': { cost: 4800, functioningTimeMinutes: 110 },
+  'Electrostar Solventation': { cost: 5200, functioningTimeMinutes: 125 },
+  'Ferron Exchange': { cost: 4500, functioningTimeMinutes: 100 },
+  'Gaskin Process': { cost: 3900, functioningTimeMinutes: 90 },
+  'Pyrometric Chromalysis': { cost: 5600, functioningTimeMinutes: 140 },
+  'Sinder Molecularization': { cost: 6100, functioningTimeMinutes: 150 },
+}
+
+const EXPENSE_TYPE_COST_MAP: Record<(typeof EXPENSE_TYPES)[number], number> = {
+  Fuel: 1500,
+  Repairs: 3000,
+  'Crew and Supplies': 2500,
+  Ammo: 1200,
+  Insurance: 5000,
+  'Landing and Docking': 700,
+  'Work Orders': 0,
+}
+
 const auecFormatter = new Intl.NumberFormat('en-US', {
   maximumFractionDigits: 0,
 })
@@ -165,6 +257,31 @@ function createOwnedShip(name: string, cargoCapacity: number, functionLabel: str
   }
 }
 
+function createSessionExpense(type: string, cost: number): SessionExpense {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type,
+    cost,
+  }
+}
+
+function createWorkOrderExpense(
+  processingType: string,
+  location: string,
+  cost: number,
+  functioningTimeMinutes: number,
+): SessionExpense {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: 'Work Orders',
+    cost,
+    location,
+    processingType,
+    functioningTimeMinutes,
+    startedAt: Date.now(),
+  }
+}
+
 function ensureUserProfile(raw: UserProfile): UserProfile {
   return {
     ...raw,
@@ -186,6 +303,24 @@ function ensureUserProfile(raw: UserProfile): UserProfile {
             totalProfit: Number(raw.sessions.totalProfit) || 0,
           }
         : defaultSessions(),
+    activeWorkOrders: Array.isArray(raw.activeWorkOrders)
+      ? raw.activeWorkOrders
+          .filter((workOrder) => workOrder && typeof workOrder === 'object')
+          .map((workOrder) => ({
+            id: String(workOrder.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+            location: String(workOrder.location ?? '').trim(),
+            type: String(workOrder.type ?? '').trim(),
+            startedAt: Number(workOrder.startedAt) || Date.now(),
+            functioningTimeMinutes:
+              Number(workOrder.functioningTimeMinutes) ||
+              WORK_ORDER_DURATION_MAP[
+                (WORK_ORDER_TYPES.includes(String(workOrder.type ?? '') as (typeof WORK_ORDER_TYPES)[number])
+                  ? String(workOrder.type ?? '')
+                  : WORK_ORDER_TYPES[0]) as (typeof WORK_ORDER_TYPES)[number]
+              ],
+          }))
+          .filter((workOrder) => workOrder.location && workOrder.type)
+      : [],
   }
 }
 
@@ -297,7 +432,7 @@ function App() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
-  const [authView, setAuthView] = useState<'auth' | 'profile-setup' | 'profile'>('auth')
+  const [authView, setAuthView] = useState<'auth' | 'profile-setup' | 'profile' | 'session-tracker'>('auth')
   const [isRegisterExiting, setIsRegisterExiting] = useState(false)
   const [authError, setAuthError] = useState('')
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -318,6 +453,23 @@ function App() {
   const [financialEarningsInput, setFinancialEarningsInput] = useState(0)
   const [financialCostsInput, setFinancialCostsInput] = useState(0)
   const [financialError, setFinancialError] = useState('')
+  const [sessionError, setSessionError] = useState('')
+  const [showStartSessionOverlay, setShowStartSessionOverlay] = useState(false)
+  const [sessionTypeInput, setSessionTypeInput] = useState<(typeof SESSION_TYPES)[number]>('Salvage')
+  const [activeSessionType, setActiveSessionType] = useState<(typeof SESSION_TYPES)[number]>('Salvage')
+  const [activeSessionExpenses, setActiveSessionExpenses] = useState<SessionExpense[]>([])
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [showAddExpenseOverlay, setShowAddExpenseOverlay] = useState(false)
+  const [expenseTypeInput, setExpenseTypeInput] = useState<(typeof EXPENSE_TYPES)[number]>('Fuel')
+  const [expenseCostInput, setExpenseCostInput] = useState(EXPENSE_TYPE_COST_MAP.Fuel)
+  const [expenseError, setExpenseError] = useState('')
+  const [expenseLocationInput, setExpenseLocationInput] = useState<string>(REFINERY_STATION_OPTIONS[0])
+  const [expenseProcessingTypeInput, setExpenseProcessingTypeInput] = useState<(typeof WORK_ORDER_PROCESSING_TYPES)[number]>('Dinyx Solventation')
+  const [expenseFunctioningTimeInput, setExpenseFunctioningTimeInput] = useState(WORK_ORDER_PROCESSING_MAP['Dinyx Solventation'].functioningTimeMinutes)
+  const [trackerNow, setTrackerNow] = useState(Date.now())
+  const [sessionTableSortKey, setSessionTableSortKey] = useState<SessionTableSortKey>('type')
+  const [sessionTableSortDirection, setSessionTableSortDirection] = useState<'asc' | 'desc'>('asc')
   const [showMoreOverlay, setShowMoreOverlay] = useState(false)
   const [detailEmailInput, setDetailEmailInput] = useState('')
   const [detailCreatedAtInput, setDetailCreatedAtInput] = useState('')
@@ -334,6 +486,16 @@ function App() {
     setAuthStorageType(restored.storage)
     setAuthView('profile')
   }, [])
+
+  useEffect(() => {
+    if (authView !== 'profile' && authView !== 'session-tracker') {
+      return undefined
+    }
+
+    setTrackerNow(Date.now())
+    const intervalId = window.setInterval(() => setTrackerNow(Date.now()), 1000)
+    return () => window.clearInterval(intervalId)
+  }, [authView])
 
   function persistProfile(nextUser: UserProfile) {
     if (!authToken) {
@@ -369,6 +531,7 @@ function App() {
         ownedShips: [],
         financial: defaultFinancial(),
         sessions: defaultSessions(),
+        activeWorkOrders: [],
       })
       setSetupRole(ROLE_CHOICES[0])
       setSetupShip('')
@@ -445,6 +608,7 @@ function App() {
           ownedShips: [ownedShip],
           sessions: defaultSessions(),
           financial: defaultFinancial(),
+          activeWorkOrders: [],
         }),
       })
 
@@ -538,6 +702,62 @@ function App() {
     setFinancialError('')
   }
 
+  function loadSessionIntoTracker(session: ActiveSession) {
+    setCurrentSessionId(session.id)
+    setActiveSessionType(session.type)
+    setActiveSessionExpenses(session.expenses)
+    setAuthView('session-tracker')
+  }
+
+  function openActiveSessionView(sessionId: string) {
+    const nextSession = activeSessions.find((session) => session.id === sessionId)
+    if (!nextSession) {
+      setSessionError('That active session could not be found.')
+      return
+    }
+
+    setSessionError('')
+    loadSessionIntoTracker(nextSession)
+  }
+
+  async function completeActiveWorkOrder(workOrderId: string) {
+    if (!profile) {
+      return
+    }
+
+    const nextUser: UserProfile = {
+      ...profile,
+      activeWorkOrders: profile.activeWorkOrders.filter((workOrder) => workOrder.id !== workOrderId),
+    }
+
+    setProfile(nextUser)
+    persistProfile(nextUser)
+
+    try {
+      const response = await fetch('/api/profile/update-work-orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: nextUser.email,
+          activeWorkOrders: nextUser.activeWorkOrders,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string }
+        setSessionError(data.error ?? 'Saved locally, but could not sync work order completion.')
+        return
+      }
+    } catch {
+      setSessionError('Saved locally, but could not sync work order completion.')
+      return
+    }
+
+    setSessionError('')
+  }
+
   function logout() {
     localStorage.removeItem(AUTH_STORAGE_KEY)
     sessionStorage.removeItem(AUTH_STORAGE_KEY)
@@ -554,6 +774,8 @@ function App() {
     setShowAddShipOverlay(false)
     setShowFinancialOverlay(false)
     setShowMoreOverlay(false)
+    setActiveSessions([])
+    setCurrentSessionId(null)
   }
 
   function openMoreOverlay() {
@@ -811,12 +1033,236 @@ function App() {
     }
   }
 
+  async function startNewSession() {
+    setSessionTypeInput('Salvage')
+    setSessionError('')
+    setShowStartSessionOverlay(true)
+  }
+
+  function closeStartSessionOverlay() {
+    setShowStartSessionOverlay(false)
+  }
+
+  function closeSessionTrackerView() {
+    setAuthView('profile')
+  }
+
+  function openAddExpenseOverlay() {
+    setExpenseTypeInput('Fuel')
+    setExpenseCostInput(EXPENSE_TYPE_COST_MAP.Fuel)
+    setExpenseLocationInput(REFINERY_STATION_OPTIONS[0])
+    setExpenseProcessingTypeInput('Dinyx Solventation')
+    setExpenseFunctioningTimeInput(WORK_ORDER_PROCESSING_MAP['Dinyx Solventation'].functioningTimeMinutes)
+    setExpenseError('')
+    setShowAddExpenseOverlay(true)
+  }
+
+  function closeAddExpenseOverlay() {
+    setShowAddExpenseOverlay(false)
+    setExpenseError('')
+  }
+
+  function formatRemainingTime(expense: SessionExpense): string {
+    if (!expense.startedAt || !expense.functioningTimeMinutes) {
+      return '-'
+    }
+
+    const elapsedSeconds = Math.floor((trackerNow - expense.startedAt) / 1000)
+    const totalSeconds = expense.functioningTimeMinutes * 60
+    const remainingSeconds = Math.max(totalSeconds - elapsedSeconds, 0)
+    const minutes = Math.floor(remainingSeconds / 60)
+    const seconds = remainingSeconds % 60
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  function getWorkOrderRemainingSeconds(workOrder: ActiveWorkOrder): number {
+    const elapsedSeconds = Math.floor((trackerNow - workOrder.startedAt) / 1000)
+    return Math.max(workOrder.functioningTimeMinutes * 60 - elapsedSeconds, 0)
+  }
+
+  function formatWorkOrderTimer(workOrder: ActiveWorkOrder): string {
+    const remainingSeconds = getWorkOrderRemainingSeconds(workOrder)
+    const minutes = Math.floor(remainingSeconds / 60)
+    const seconds = remainingSeconds % 60
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  function formatSessionTimer(session: ActiveSession): string {
+    const elapsedSeconds = Math.max(Math.floor((trackerNow - session.startedAt) / 1000), 0)
+    const minutes = Math.floor(elapsedSeconds / 60)
+    const seconds = elapsedSeconds % 60
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  function getSessionExpenseDescription(expense: SessionExpense): string {
+    if (expense.type === 'Work Orders' && expense.processingType && expense.location) {
+      return `${expense.processingType} at ${expense.location}`
+    }
+
+    return `${expense.type} expense entry`
+  }
+
+  function getSessionExpenseSortValue(expense: SessionExpense, sortKey: SessionTableSortKey): string | number {
+    switch (sortKey) {
+      case 'type':
+        return expense.type
+      case 'description':
+        return getSessionExpenseDescription(expense)
+      case 'amount':
+        return expense.cost
+      case 'time':
+        return expense.type === 'Work Orders' ? getWorkOrderRemainingSeconds(expense as ActiveWorkOrder) : -1
+      default:
+        return expense.type
+    }
+  }
+
+  function handleSessionTableSort(sortKey: SessionTableSortKey) {
+    if (sessionTableSortKey === sortKey) {
+      setSessionTableSortDirection((currentDirection) => (currentDirection === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+
+    setSessionTableSortKey(sortKey)
+    setSessionTableSortDirection('asc')
+  }
+
+  async function submitStartSession(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!profile) {
+      setSessionError('Profile not loaded.')
+      return
+    }
+
+    const normalizedSessionType = sessionTypeInput.toLowerCase()
+    const isSalvageSession = normalizedSessionType === 'salvage'
+    const isMiningSession = normalizedSessionType === 'mining'
+
+    const nextUser: UserProfile = {
+      ...profile,
+      sessions: {
+        totalSessions: (profile.sessions?.totalSessions ?? 0) + 1,
+        salvageSessions: (profile.sessions?.salvageSessions ?? 0) + (isSalvageSession ? 1 : 0),
+        miningSessions: (profile.sessions?.miningSessions ?? 0) + (isMiningSession ? 1 : 0),
+        totalProfit: profile.sessions?.totalProfit ?? 0,
+      },
+    }
+
+    const nextSession: ActiveSession = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type: sessionTypeInput,
+      startedAt: Date.now(),
+      expenses: [],
+    }
+
+    setSessionError('')
+    setProfile(nextUser)
+    persistProfile(nextUser)
+    setActiveSessions((current) => [...current, nextSession])
+    loadSessionIntoTracker(nextSession)
+
+    try {
+      const response = await fetch('/api/profile/update-sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: nextUser.email,
+          sessions: nextUser.sessions,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string }
+        setSessionError(data.error ?? 'Saved locally, but could not sync sessions.')
+      }
+    } catch {
+      setSessionError('Saved locally, but could not sync sessions.')
+    }
+
+    setShowStartSessionOverlay(false)
+  }
+
+  function submitAddExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (expenseCostInput < 0) {
+      setExpenseError('Expense cost cannot be negative.')
+      return
+    }
+
+    let nextExpense: SessionExpense
+
+    if (expenseTypeInput === 'Work Orders') {
+      const location = expenseLocationInput.trim()
+      const processingType = expenseProcessingTypeInput.trim()
+
+      if (!location) {
+        setExpenseError('Work order location is required.')
+        return
+      }
+
+      if (!processingType) {
+        setExpenseError('Work order processing type is required.')
+        return
+      }
+
+      if (expenseFunctioningTimeInput <= 0) {
+        setExpenseError('Functioning time must be greater than zero.')
+        return
+      }
+
+      nextExpense = createWorkOrderExpense(
+        processingType,
+        location,
+        Math.round(expenseCostInput),
+        Math.round(expenseFunctioningTimeInput),
+      )
+    } else {
+      nextExpense = createSessionExpense(expenseTypeInput, Math.round(expenseCostInput))
+    }
+
+    setActiveSessionExpenses((current) => {
+      const nextExpenses = [...current, nextExpense]
+      setActiveSessions((sessions) =>
+        sessions.map((session) =>
+          session.id === currentSessionId ? { ...session, expenses: nextExpenses } : session,
+        ),
+      )
+      return nextExpenses
+    })
+    setExpenseError('')
+    setShowAddExpenseOverlay(false)
+  }
+
+
   const ownedShipNames = Array.from(
     new Set((profile?.ownedShips ?? []).map((ownedShip) => ownedShip.name).filter((name) => name.trim())),
   )
+  const totalSessionExpenses = activeSessionExpenses.reduce((total, expense) => total + expense.cost, 0)
+  const sessionCost = totalSessionExpenses
+  const grossRevenue = 0
+  const netProfit = grossRevenue - totalSessionExpenses
+  const activeSessionCount = activeSessions.length
+  const activeWorkOrders = profile?.activeWorkOrders ?? []
+  const sortedSessionExpenses = [...activeSessionExpenses].sort((left, right) => {
+    const leftValue = getSessionExpenseSortValue(left, sessionTableSortKey)
+    const rightValue = getSessionExpenseSortValue(right, sessionTableSortKey)
+
+    let comparison = 0
+    if (typeof leftValue === 'number' && typeof rightValue === 'number') {
+      comparison = leftValue - rightValue
+    } else {
+      comparison = String(leftValue).localeCompare(String(rightValue))
+    }
+
+    return sessionTableSortDirection === 'asc' ? comparison : -comparison
+  })
 
   return (
-    <div className={`auth-shell ${authView === 'profile' ? 'profile-shell' : ''}`}>
+    <div className={`auth-shell ${authView === 'profile' || authView === 'session-tracker' ? 'profile-shell' : ''}`}>
       {authView === 'auth' ? (
         <article className={`auth-paper ${isRegisterExiting ? 'exiting' : ''}`}>
           <p className="auth-kicker">Star Citizen Companion</p>
@@ -981,6 +1427,267 @@ function App() {
             </button>
           </form>
         </article>
+      ) : authView === 'session-tracker' ? (
+        <article className="profile-paper profile-page">
+          <p className="auth-kicker">Session Tracker</p>
+          <h1>{profile?.callsign || 'Pilot'} - {activeSessionType} Session</h1>
+          <p className="auth-subhead">Track expenses and profit for the current run.</p>
+
+          <div className="session-tracker-actions">
+            <button type="button" className="auth-submit add-ship-button" onClick={openAddExpenseOverlay}>
+              Add Expense
+            </button>
+          </div>
+
+          <section className="active-work-orders-section">
+            <div className="active-work-orders-header">
+              <h3>Active Work Orders</h3>
+            </div>
+
+            {profile?.activeWorkOrders && profile.activeWorkOrders.length > 0 ? (
+              <ul className="active-work-orders-list">
+                {profile.activeWorkOrders.map((workOrder) => (
+                      <li key={workOrder.id}>
+                        <div>
+                          <strong>{workOrder.location}</strong>
+                          <span>Type: {workOrder.type}</span>
+                          <span>Timer: {formatWorkOrderTimer(workOrder)}</span>
+                        </div>
+                        {getWorkOrderRemainingSeconds(workOrder) === 0 ? (
+                          <button
+                            type="button"
+                            className="complete-work-order-button"
+                            onClick={() => {
+                              void completeActiveWorkOrder(workOrder.id)
+                            }}
+                          >
+                            Complete
+                          </button>
+                        ) : (
+                          <span className="work-order-running-label">Running</span>
+                        )}
+                      </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="auth-subhead">No active work orders.</p>
+            )}
+          </section>
+
+          <section className="session-tracker-table-wrap">
+            <table className="session-tracker-table">
+              <thead>
+                <tr>
+                  <th
+                    aria-sort={
+                      sessionTableSortKey === 'type'
+                        ? sessionTableSortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    <button type="button" className="table-sort-button" onClick={() => handleSessionTableSort('type')}>
+                      Category
+                    </button>
+                  </th>
+                  <th
+                    aria-sort={
+                      sessionTableSortKey === 'description'
+                        ? sessionTableSortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    <button
+                      type="button"
+                      className="table-sort-button"
+                      onClick={() => handleSessionTableSort('description')}
+                    >
+                      Description
+                    </button>
+                  </th>
+                  <th
+                    aria-sort={
+                      sessionTableSortKey === 'amount'
+                        ? sessionTableSortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    <button type="button" className="table-sort-button" onClick={() => handleSessionTableSort('amount')}>
+                      Amount (aUEC)
+                    </button>
+                  </th>
+                  <th
+                    aria-sort={
+                      sessionTableSortKey === 'time'
+                        ? sessionTableSortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    <button type="button" className="table-sort-button" onClick={() => handleSessionTableSort('time')}>
+                      Functioning Time
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td colSpan={4} className="session-row-title">Expenses</td>
+                </tr>
+                {sortedSessionExpenses.length > 0 ? (
+                  sortedSessionExpenses.map((expense) => (
+                    <tr key={expense.id}>
+                      <td>{expense.type}</td>
+                      <td>{getSessionExpenseDescription(expense)}</td>
+                      <td className="session-amount-expense">{expense.cost.toLocaleString()}</td>
+                      <td>{expense.type === 'Work Orders' ? formatRemainingTime(expense) : '-'}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4}>No expenses added yet.</td>
+                  </tr>
+                )}
+                <tr>
+                  <td>Total Expenses</td>
+                  <td>Sum of all session expense entries</td>
+                  <td className="session-amount-expense">{totalSessionExpenses.toLocaleString()}</td>
+                  <td>-</td>
+                </tr>
+                <tr>
+                  <td colSpan={4} className="session-row-title">Profit</td>
+                </tr>
+                <tr>
+                  <td>Gross Revenue</td>
+                  <td>Total sale value from session outputs</td>
+                  <td className="session-amount-profit">{grossRevenue.toLocaleString()}</td>
+                  <td>-</td>
+                </tr>
+                <tr>
+                  <td>Net Profit</td>
+                  <td>Gross revenue minus total expenses</td>
+                  <td className="session-amount-profit">{netProfit.toLocaleString()}</td>
+                  <td>-</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          {showAddExpenseOverlay ? (
+            <div className="ship-overlay" role="dialog" aria-modal="true" aria-label="Add Expense">
+              <article className="ship-overlay-paper">
+                <p className="auth-kicker">Session Tracker</p>
+                <h2>Add Expense</h2>
+                <form className="profile-setup-form" onSubmit={submitAddExpense}>
+                  <label>
+                    Expense Type
+                    <select
+                      value={expenseTypeInput}
+                      onChange={(event) => {
+                        const nextType = event.target.value as (typeof EXPENSE_TYPES)[number]
+                        setExpenseTypeInput(nextType)
+                        if (nextType === 'Work Orders') {
+                          setExpenseCostInput(WORK_ORDER_PROCESSING_MAP[expenseProcessingTypeInput].cost)
+                        } else {
+                          setExpenseCostInput(EXPENSE_TYPE_COST_MAP[nextType])
+                        }
+                      }}
+                    >
+                      {EXPENSE_TYPES.map((expenseType) => (
+                        <option key={expenseType} value={expenseType}>
+                          {expenseType}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    Cost (aUEC)
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={expenseCostInput}
+                      onChange={(event) => setExpenseCostInput(Number(event.target.value))}
+                    />
+                  </label>
+
+                  {expenseTypeInput === 'Work Orders' ? (
+                    <>
+                      <label>
+                        Location
+                        <input
+                          list="refinery-station-options"
+                          value={expenseLocationInput}
+                          onChange={(event) => setExpenseLocationInput(event.target.value)}
+                          placeholder="Search refinery station"
+                        />
+                        <datalist id="refinery-station-options">
+                          {REFINERY_STATION_OPTIONS.map((station) => (
+                            <option key={station} value={station} />
+                          ))}
+                        </datalist>
+                      </label>
+
+                      <label>
+                        Processing Type
+                        <select
+                          value={expenseProcessingTypeInput}
+                          onChange={(event) => {
+                            const nextProcessingType = event.target.value as (typeof WORK_ORDER_PROCESSING_TYPES)[number]
+                            setExpenseProcessingTypeInput(nextProcessingType)
+                            setExpenseCostInput(WORK_ORDER_PROCESSING_MAP[nextProcessingType].cost)
+                            setExpenseFunctioningTimeInput(WORK_ORDER_PROCESSING_MAP[nextProcessingType].functioningTimeMinutes)
+                          }}
+                        >
+                          {WORK_ORDER_PROCESSING_TYPES.map((processingType) => (
+                            <option key={processingType} value={processingType}>
+                              {processingType}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label>
+                        Functioning Time (min)
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={expenseFunctioningTimeInput}
+                          onChange={(event) => setExpenseFunctioningTimeInput(Number(event.target.value))}
+                        />
+                      </label>
+                    </>
+                  ) : null}
+
+                  {expenseError ? <p className="auth-error">{expenseError}</p> : null}
+
+                  <div className="ship-overlay-actions">
+                    <button type="button" className="auth-submit ship-cancel" onClick={closeAddExpenseOverlay}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="auth-submit">
+                      Save Expense
+                    </button>
+                  </div>
+                </form>
+              </article>
+            </div>
+          ) : null}
+
+          <div className="profile-footer-actions">
+            <button type="button" className="auth-submit" onClick={closeSessionTrackerView}>
+              Back To Profile
+            </button>
+          </div>
+        </article>
       ) : (
         <article className="profile-paper profile-page">
           <p className="auth-kicker">User Profile</p>
@@ -1046,11 +1753,30 @@ function App() {
                     {toAuec((profile?.financial.totalEarnings ?? 0) - (profile?.financial.totalCosts ?? 0))}
                   </strong>
                 </div>
+                <div>
+                  <span>Session Expenses</span>
+                  <strong>{toAuec(sessionCost)}</strong>
+                </div>
+                <div>
+                  <span>Session Profit</span>
+                  <strong>{toAuec(netProfit)}</strong>
+                </div>
               </div>
             </section>
 
             <section className="sessions-section">
-              <h2>Sessions</h2>
+              <div className="sessions-header">
+                <h2>Sessions</h2>
+                <button
+                  type="button"
+                  className="auth-submit add-ship-button"
+                  onClick={() => {
+                    void startNewSession()
+                  }}
+                >
+                  Start New Session
+                </button>
+              </div>
               <div className="sessions-grid">
                 <div>
                   <span>Total Sessions</span>
@@ -1068,9 +1794,96 @@ function App() {
                   <span>Session Profit</span>
                   <strong>{toAuec(profile?.sessions?.totalProfit ?? 0)}</strong>
                 </div>
+                <div>
+                  <span>Session Cost</span>
+                  <strong>{toAuec(sessionCost)}</strong>
+                </div>
               </div>
+
+              <section className="active-sessions-section">
+                <div className="active-sessions-header">
+                  <h3>Active Sessions</h3>
+                  <strong>{activeSessionCount}</strong>
+                </div>
+
+                {activeSessions.length > 0 ? (
+                  <ul className="active-sessions-list">
+                    {activeSessions.map((session) => {
+                      const sessionExpenseTotal = session.expenses.reduce((total, expense) => total + expense.cost, 0)
+                      return (
+                        <li key={session.id}>
+                          <div>
+                            <strong>{session.type} Session</strong>
+                            <span>Started {new Date(session.startedAt).toLocaleString()}</span>
+                            <span>Timer: {formatSessionTimer(session)}</span>
+                            <span>Expenses: {toAuec(sessionExpenseTotal)}</span>
+                            <span className="active-session-work-orders-label">
+                              Active Work Orders: {activeWorkOrders.length}
+                            </span>
+                            {activeWorkOrders.length > 0 ? (
+                              <div className="active-session-work-order-timers">
+                                {activeWorkOrders.map((workOrder) => (
+                                  <span key={workOrder.id}>
+                                    {workOrder.location}: {formatWorkOrderTimer(workOrder)}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            className="auth-submit add-ship-button"
+                            onClick={() => openActiveSessionView(session.id)}
+                          >
+                            View
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <p className="auth-subhead">No active sessions.</p>
+                )}
+              </section>
+
+              {sessionError ? <p className="auth-error">{sessionError}</p> : null}
             </section>
           </div>
+
+          {showStartSessionOverlay ? (
+            <div className="ship-overlay" role="dialog" aria-modal="true" aria-label="Start New Session">
+              <article className="ship-overlay-paper">
+                <p className="auth-kicker">Sessions</p>
+                <h2>Start New Session</h2>
+                <form className="profile-setup-form" onSubmit={submitStartSession}>
+                  <label>
+                    Session Type
+                    <select
+                      value={sessionTypeInput}
+                      onChange={(event) =>
+                        setSessionTypeInput(event.target.value as (typeof SESSION_TYPES)[number])
+                      }
+                    >
+                      {SESSION_TYPES.map((sessionType) => (
+                        <option key={sessionType} value={sessionType}>
+                          {sessionType}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="ship-overlay-actions">
+                    <button type="button" className="auth-submit ship-cancel" onClick={closeStartSessionOverlay}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="auth-submit">
+                      Start Session
+                    </button>
+                  </div>
+                </form>
+              </article>
+            </div>
+          ) : null}
 
           <section className="owned-ships-section">
             <div className="owned-ships-header">
@@ -1266,6 +2079,7 @@ function App() {
               </article>
             </div>
           ) : null}
+
         </article>
       )}
     </div>

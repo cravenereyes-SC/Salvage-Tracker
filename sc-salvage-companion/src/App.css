@@ -276,6 +276,155 @@
   font-size: 1rem;
 }
 
+.sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.active-sessions-section {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.55rem;
+}
+
+.active-sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.active-sessions-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.active-sessions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.active-sessions-list li {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.active-sessions-list li div {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.active-session-work-orders-label {
+  margin-top: 0.12rem;
+  color: var(--brand);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.active-session-work-order-timers {
+  display: grid;
+  gap: 0.12rem;
+  padding-top: 0.1rem;
+}
+
+.active-session-work-order-timers span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.active-sessions-list li span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.active-work-orders-section {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.55rem;
+}
+
+.active-work-orders-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.active-work-orders-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.active-work-orders-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.active-work-orders-list li {
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.active-work-orders-list li div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.active-work-orders-list li span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.work-order-running-label {
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.complete-work-order-button {
+  border: 1px solid rgba(54, 179, 126, 0.6);
+  background: linear-gradient(180deg, rgba(54, 179, 126, 0.32), rgba(54, 179, 126, 0.14));
+  color: #dbffe9;
+  border-radius: 10px;
+  padding: 0.48rem 0.72rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.complete-work-order-button:hover {
+  filter: brightness(1.05);
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -322,6 +471,71 @@
   font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.09em;
+}
+
+.session-tracker-table-wrap {
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.65rem;
+}
+
+.session-tracker-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.25rem;
+}
+
+.session-tracker-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.session-tracker-table th,
+.session-tracker-table td {
+  border-bottom: 1px solid var(--panel-border);
+  padding: 0.6rem 0.68rem;
+  text-align: left;
+}
+
+.session-tracker-table th {
+  color: var(--brand);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.table-sort-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.table-sort-button:hover {
+  color: var(--text);
+}
+
+.session-row-title {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.session-amount-expense {
+  color: var(--danger);
+}
+
+.session-amount-profit {
+  color: var(--success);
 }
 
 .owned-ships-header {
@@ -501,5 +715,14 @@
 
   .sessions-grid {
     grid-template-columns: 1fr;
+  }
+
+  .session-tracker-table {
+    font-size: 0.86rem;
+  }
+
+  .active-work-orders-header {
+    align-items: start;
+    flex-direction: column;
   }
 }

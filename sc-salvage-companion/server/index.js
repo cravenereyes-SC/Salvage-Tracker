@@ -126,9 +126,27 @@ function verifyPassword(password, hash, salt) {
   return actual.length === candidate.length && timingSafeEqual(actual, candidate)
 }
 
+function getWorkOrderDurationMinutes(type) {
+  switch (String(type).trim()) {
+    case 'Salvage':
+      return 180
+    case 'Mining':
+      return 120
+    case 'Cargo':
+      return 90
+    case 'Recovery':
+      return 60
+    case 'Survey':
+      return 45
+    default:
+      return 120
+  }
+}
+
 function sanitizeUser(user) {
   const financial = user && typeof user.financial === 'object' ? user.financial : {}
   const sessions = user && typeof user.sessions === 'object' ? user.sessions : {}
+  const activeWorkOrders = Array.isArray(user?.activeWorkOrders) ? user.activeWorkOrders : []
 
   return {
     callsign: user.callsign,
@@ -148,6 +166,17 @@ function sanitizeUser(user) {
       miningSessions: Number(sessions.miningSessions) || 0,
       totalProfit: Number(sessions.totalProfit) || 0,
     },
+    activeWorkOrders: activeWorkOrders
+      .filter((workOrder) => workOrder && typeof workOrder === 'object')
+      .map((workOrder) => ({
+        id: String(workOrder.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+        location: String(workOrder.location ?? '').trim(),
+        type: String(workOrder.type ?? '').trim(),
+        startedAt: Number(workOrder.startedAt) || Date.now(),
+        functioningTimeMinutes:
+          Number(workOrder.functioningTimeMinutes) || getWorkOrderDurationMinutes(workOrder.type),
+      }))
+      .filter((workOrder) => workOrder.location && workOrder.type),
   }
 }
 
@@ -156,7 +185,7 @@ function issueToken() {
 }
 
 app.post('/api/auth/register', async (req, res) => {
-  const { callsign, email, password, role, ship, ownedShips, financial, sessions } = req.body ?? {}
+  const { callsign, email, password, role, ship, ownedShips, financial, sessions, activeWorkOrders } = req.body ?? {}
 
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail || !password || !callsign || !role || !ship) {
@@ -207,6 +236,19 @@ app.post('/api/auth/register', async (req, res) => {
             miningSessions: 0,
             totalProfit: 0,
           },
+    activeWorkOrders: Array.isArray(activeWorkOrders)
+      ? activeWorkOrders
+          .filter((workOrder) => workOrder && typeof workOrder === 'object')
+          .map((workOrder) => ({
+            id: String(workOrder.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+            location: String(workOrder.location ?? '').trim(),
+            type: String(workOrder.type ?? '').trim(),
+            startedAt: Number(workOrder.startedAt) || Date.now(),
+            functioningTimeMinutes:
+              Number(workOrder.functioningTimeMinutes) || getWorkOrderDurationMinutes(workOrder.type),
+          }))
+          .filter((workOrder) => workOrder.location && workOrder.type)
+      : [],
   }
 
   users.push(userRecord)
@@ -286,6 +328,69 @@ app.post('/api/profile/update-financial', async (req, res) => {
       totalEarnings: Number(financial.totalEarnings) || 0,
       totalCosts: Number(financial.totalCosts) || 0,
     },
+  }
+
+  await writeUsers(users)
+  return res.status(200).json({ ok: true, user: sanitizeUser(users[index]) })
+})
+
+app.post('/api/profile/update-sessions', async (req, res) => {
+  const { email, sessions } = req.body ?? {}
+  const normalizedEmail = normalizeEmail(email)
+
+  if (!normalizedEmail || !sessions || typeof sessions !== 'object') {
+    return res.status(400).json({ error: 'Email and sessions payload are required.' })
+  }
+
+  const users = await readUsers()
+  const index = users.findIndex((entry) => normalizeEmail(entry.email) === normalizedEmail)
+
+  if (index < 0) {
+    return res.status(404).json({ error: 'User not found.' })
+  }
+
+  users[index] = {
+    ...users[index],
+    sessions: {
+      totalSessions: Number(sessions.totalSessions) || 0,
+      salvageSessions: Number(sessions.salvageSessions) || 0,
+      miningSessions: Number(sessions.miningSessions) || 0,
+      totalProfit: Number(sessions.totalProfit) || 0,
+    },
+  }
+
+  await writeUsers(users)
+  return res.status(200).json({ ok: true, user: sanitizeUser(users[index]) })
+})
+
+app.post('/api/profile/update-work-orders', async (req, res) => {
+  const { email, activeWorkOrders } = req.body ?? {}
+  const normalizedEmail = normalizeEmail(email)
+
+  if (!normalizedEmail || !Array.isArray(activeWorkOrders)) {
+    return res.status(400).json({ error: 'Email and activeWorkOrders are required.' })
+  }
+
+  const users = await readUsers()
+  const index = users.findIndex((entry) => normalizeEmail(entry.email) === normalizedEmail)
+
+  if (index < 0) {
+    return res.status(404).json({ error: 'User not found.' })
+  }
+
+  users[index] = {
+    ...users[index],
+    activeWorkOrders: activeWorkOrders
+      .filter((workOrder) => workOrder && typeof workOrder === 'object')
+      .map((workOrder) => ({
+        id: String(workOrder.id ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+        location: String(workOrder.location ?? '').trim(),
+        type: String(workOrder.type ?? '').trim(),
+        startedAt: Number(workOrder.startedAt) || Date.now(),
+        functioningTimeMinutes:
+          Number(workOrder.functioningTimeMinutes) || getWorkOrderDurationMinutes(workOrder.type),
+      }))
+      .filter((workOrder) => workOrder.location && workOrder.type),
   }
 
   await writeUsers(users)
