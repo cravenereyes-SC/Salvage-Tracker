@@ -164,7 +164,7 @@ const SHIP_FUNCTION_MAP: Record<string, string> = {
   'RSI Polaris': 'Capital Combat',
 }
 
-const ROLE_CHOICES = ['Salvager', 'Miner', 'Hybrid Operator', 'Fleet Lead']
+const ROLE_CHOICES = ['Captain', 'Crew', 'Pilot', 'Salvager', 'Miner', 'Hybrid Operator', 'Fleet Lead', 'Other']
 
 const WORK_ORDER_TYPES = ['Salvage', 'Mining', 'Cargo', 'Recovery', 'Survey']
 const WORK_ORDER_DURATION_MAP: Record<(typeof WORK_ORDER_TYPES)[number], number> = {
@@ -494,6 +494,7 @@ function App() {
   const [addShipError, setAddShipError] = useState('')
   const [isCargoCapacityLoading, setIsCargoCapacityLoading] = useState(false)
   const [shipUpdateError, setShipUpdateError] = useState('')
+  const [roleUpdateError, setRoleUpdateError] = useState('')
   const [showFinancialOverlay, setShowFinancialOverlay] = useState(false)
   const [financialBalanceInput, setFinancialBalanceInput] = useState(0)
   const [financialEarningsInput, setFinancialEarningsInput] = useState(0)
@@ -1149,6 +1150,48 @@ function App() {
       }
     } catch {
       setShipUpdateError('Saved locally, but could not sync active ship.')
+    }
+  }
+
+  async function selectRole(nextRoleLabel: string) {
+    if (!profile) {
+      setRoleUpdateError('Profile not loaded.')
+      return
+    }
+
+    const nextRole = nextRoleLabel.trim()
+    if (!nextRole) {
+      setRoleUpdateError('Role is required.')
+      return
+    }
+
+    const nextUser: UserProfile = {
+      ...profile,
+      role: nextRole,
+    }
+
+    setRoleUpdateError('')
+    setProfile(nextUser)
+    persistProfile(nextUser)
+
+    try {
+      const response = await fetch('/api/profile/update-role', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: nextUser.email,
+          role: nextUser.role,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string }
+        setRoleUpdateError(data.error ?? 'Saved locally, but could not sync role.')
+      }
+    } catch {
+      setRoleUpdateError('Saved locally, but could not sync role.')
     }
   }
 
@@ -1990,15 +2033,27 @@ function App() {
                   Personal Profile
                 </p>
                 <div className="profile-grid">
-                  <div>
+                  <div className="profile-item-callsign">
                     <span>Callsign</span>
                     <strong>{profile?.callsign ?? 'Unknown'}</strong>
                   </div>
-                  <div>
+                  <div className="profile-item-role">
                     <span>Role</span>
-                    <strong>{profile?.role ?? 'Salvage and Mining Operator'}</strong>
+                    <select
+                      value={profile?.role ?? ROLE_CHOICES[0]}
+                      onChange={(event) => {
+                        void selectRole(event.target.value)
+                      }}
+                    >
+                      {ROLE_CHOICES.map((roleChoice) => (
+                        <option key={roleChoice} value={roleChoice}>
+                          {roleChoice}
+                        </option>
+                      ))}
+                    </select>
+                    {roleUpdateError ? <p className="auth-error">{roleUpdateError}</p> : null}
                   </div>
-                  <div>
+                  <div className="profile-item-ship">
                     <span>Ship</span>
                     <select
                       value={profile?.ship ?? ''}

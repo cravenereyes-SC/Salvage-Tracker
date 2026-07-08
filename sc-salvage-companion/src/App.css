@@ -210,6 +210,30 @@
   margin: 0;
 }
 
+.profile-header-copy .profile-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.22rem 0.4rem;
+}
+
+.profile-header-copy .profile-grid div {
+  padding: 0.12rem 0;
+}
+
+.profile-header-copy .profile-item-callsign {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.profile-header-copy .profile-item-role {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.profile-header-copy .profile-item-ship {
+  grid-column: 2;
+  grid-row: 2;
+}
+
 .profile-grid {
   display: grid;
   gap: 0.5rem;

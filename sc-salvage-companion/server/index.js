@@ -306,6 +306,31 @@ app.post('/api/profile/update-owned-ships', async (req, res) => {
   return res.status(200).json({ ok: true, user: sanitizeUser(users[index]) })
 })
 
+app.post('/api/profile/update-role', async (req, res) => {
+  const { email, role } = req.body ?? {}
+  const normalizedEmail = normalizeEmail(email)
+  const normalizedRole = String(role ?? '').trim()
+
+  if (!normalizedEmail || !normalizedRole) {
+    return res.status(400).json({ error: 'Email and role are required.' })
+  }
+
+  const users = await readUsers()
+  const index = users.findIndex((entry) => normalizeEmail(entry.email) === normalizedEmail)
+
+  if (index < 0) {
+    return res.status(404).json({ error: 'User not found.' })
+  }
+
+  users[index] = {
+    ...users[index],
+    role: normalizedRole,
+  }
+
+  await writeUsers(users)
+  return res.status(200).json({ ok: true, user: sanitizeUser(users[index]) })
+})
+
 app.post('/api/profile/update-financial', async (req, res) => {
   const { email, financial } = req.body ?? {}
   const normalizedEmail = normalizeEmail(email)
