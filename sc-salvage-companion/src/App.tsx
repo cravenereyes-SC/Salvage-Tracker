@@ -50,6 +50,7 @@ type ActiveSession = {
   type: (typeof SESSION_TYPES)[number]
   startedAt: number
   expenses: SessionExpense[]
+  activeWorkOrders: ActiveWorkOrder[]
 }
 
 type SessionTableSortKey = 'type' | 'description' | 'amount' | 'time'
@@ -806,7 +807,7 @@ function App() {
   async function submitSoldWorkOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!profile || !soldWorkOrderId) {
+    if (!profile || !soldWorkOrderId || !currentSessionId) {
       setSoldWorkOrderError('Work order is not available.')
       return
     }
@@ -823,6 +824,20 @@ function App() {
 
     const roundedSoldAmount = Math.round(soldAmountInput)
     const roundedQuantityScu = Math.round(soldQuantityScuInput)
+
+    setActiveSessions((sessions) =>
+      sessions.map((session) =>
+        session.id === currentSessionId
+          ? {
+              ...session,
+              activeWorkOrders: (session.activeWorkOrders ?? []).filter(
+                (workOrder) => workOrder.id !== soldWorkOrderId,
+              ),
+            }
+          : session,
+      ),
+    )
+
     const nextUser: UserProfile = {
       ...profile,
       financial: {
@@ -830,30 +845,12 @@ function App() {
         currentBalance: profile.financial.currentBalance + roundedSoldAmount,
         totalEarnings: profile.financial.totalEarnings + roundedSoldAmount,
       },
-      activeWorkOrders: profile.activeWorkOrders.filter((workOrder) => workOrder.id !== soldWorkOrderId),
     }
 
     setProfile(nextUser)
     persistProfile(nextUser)
 
     try {
-      const workOrderResponse = await fetch('/api/profile/update-work-orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: nextUser.email,
-          activeWorkOrders: nextUser.activeWorkOrders,
-        }),
-      })
-
-      if (!workOrderResponse.ok) {
-        const data = (await workOrderResponse.json()) as { error?: string }
-        setSoldWorkOrderError(data.error ?? 'Saved locally, but could not sync sold work order.')
-        return
-      }
-
       const financialResponse = await fetch('/api/profile/update-financial', {
         method: 'POST',
         headers: {
@@ -1271,6 +1268,7 @@ function App() {
       type: sessionTypeInput,
       startedAt: Date.now(),
       expenses: [],
+      activeWorkOrders: [],
     }
 
     setSessionError('')
@@ -1345,11 +1343,6 @@ function App() {
         return
       }
 
-      if (!profile) {
-        setExpenseError('Profile not loaded.')
-        return
-      }
-
       const normalizedFunctioningTime = totalProcessingSeconds / 60
 
       nextWorkOrder = createActiveWorkOrder(location, processingType, normalizedFunctioningTime)
@@ -1368,43 +1361,21 @@ function App() {
       const nextExpenses = [...current, nextExpense]
       setActiveSessions((sessions) =>
         sessions.map((session) =>
-          session.id === currentSessionId ? { ...session, expenses: nextExpenses } : session,
+          session.id === currentSessionId
+            ? {
+                ...session,
+                expenses: nextExpenses,
+                activeWorkOrders: nextWorkOrder
+                  ? [...(session.activeWorkOrders ?? []), nextWorkOrder]
+                  : (session.activeWorkOrders ?? []),
+              }
+            : session,
         ),
       )
       return nextExpenses
     })
 
-    if (nextWorkOrder && profile) {
-      const nextUser: UserProfile = {
-        ...profile,
-        activeWorkOrders: [...profile.activeWorkOrders, nextWorkOrder],
-      }
-
-      setProfile(nextUser)
-      persistProfile(nextUser)
-
-      try {
-        const response = await fetch('/api/profile/update-work-orders', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: nextUser.email,
-            activeWorkOrders: nextUser.activeWorkOrders,
-          }),
-        })
-
-        if (!response.ok) {
-          const data = (await response.json()) as { error?: string }
-          setSessionError(data.error ?? 'Saved locally, but could not sync active work orders.')
-        } else {
-          setSessionError('')
-        }
-      } catch {
-        setSessionError('Saved locally, but could not sync active work orders.')
-      }
-    }
+    setSessionError('')
 
     setExpenseError('')
     setShowAddExpenseOverlay(false)
@@ -1424,50 +1395,31 @@ function App() {
       ),
     )
 
-    if (expenseToRemove.type === 'Work Orders' && profile) {
-      const workOrderIdToRemove =
-        expenseToRemove.linkedWorkOrderId ??
-        profile.activeWorkOrders.find(
-          (workOrder) =>
-            workOrder.location === expenseToRemove.location && workOrder.type === expenseToRemove.processingType,
-        )?.id
+    if (expenseToRemove.type === 'Work Orders') {
+      setActiveSessions((sessions) =>
+        sessions.map((session) => {
+          if (session.id !== currentSessionId) {
+            return session
+          }
 
-      if (!workOrderIdToRemove) {
-        setSessionError('')
-        return
-      }
+          if (expenseToRemove.linkedWorkOrderId) {
+            return {
+              ...session,
+              activeWorkOrders: (session.activeWorkOrders ?? []).filter(
+                (workOrder) => workOrder.id !== expenseToRemove.linkedWorkOrderId,
+              ),
+            }
+          }
 
-      const nextUser: UserProfile = {
-        ...profile,
-        activeWorkOrders: profile.activeWorkOrders.filter(
-          (workOrder) => workOrder.id !== workOrderIdToRemove,
-        ),
-      }
-
-      setProfile(nextUser)
-      persistProfile(nextUser)
-
-      try {
-        const response = await fetch('/api/profile/update-work-orders', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: nextUser.email,
-            activeWorkOrders: nextUser.activeWorkOrders,
-          }),
-        })
-
-        if (!response.ok) {
-          const data = (await response.json()) as { error?: string }
-          setSessionError(data.error ?? 'Expense removed locally, but could not sync work order removal.')
-          return
-        }
-      } catch {
-        setSessionError('Expense removed locally, but could not sync work order removal.')
-        return
-      }
+          return {
+            ...session,
+            activeWorkOrders: (session.activeWorkOrders ?? []).filter(
+              (workOrder) =>
+                workOrder.location !== expenseToRemove.location || workOrder.type !== expenseToRemove.processingType,
+            ),
+          }
+        }),
+      )
     }
 
     setSessionError('')
@@ -1482,7 +1434,8 @@ function App() {
   const grossRevenue = 0
   const netProfit = grossRevenue - totalSessionExpenses
   const activeSessionCount = activeSessions.length
-  const activeWorkOrders = profile?.activeWorkOrders ?? []
+  const currentSession = activeSessions.find((session) => session.id === currentSessionId) ?? null
+  const activeWorkOrders = currentSession?.activeWorkOrders ?? []
   const canAddExpense = Boolean(currentSessionId && activeSessions.some((session) => session.id === currentSessionId))
   const sortedSessionExpenses = [...activeSessionExpenses].sort((left, right) => {
     const leftValue = getSessionExpenseSortValue(left, sessionTableSortKey)
@@ -1685,9 +1638,9 @@ function App() {
               <h3>Active Work Orders</h3>
             </div>
 
-            {profile?.activeWorkOrders && profile.activeWorkOrders.length > 0 ? (
+            {activeWorkOrders.length > 0 ? (
               <ul className="active-work-orders-list">
-                {profile.activeWorkOrders.map((workOrder) => (
+                {activeWorkOrders.map((workOrder) => (
                       <li key={workOrder.id}>
                         <div>
                           <strong>{workOrder.location}</strong>
@@ -2145,46 +2098,17 @@ function App() {
                     {activeSessions.map((session) => {
                       const sessionExpenseTotal = session.expenses.reduce((total, expense) => total + expense.cost, 0)
                       const sessionWorkOrderExpenses = session.expenses.filter((expense) => expense.type === 'Work Orders')
-                      const activeWorkOrdersById = new Map(activeWorkOrders.map((workOrder) => [workOrder.id, workOrder]))
-                      const activeWorkOrderFallbackByKey = new Map<string, ActiveWorkOrder[]>()
-                      const matchedActiveWorkOrderIds = new Set<string>()
-                      const sessionActiveWorkOrders: ActiveWorkOrder[] = []
+                      const sessionActiveWorkOrders = session.activeWorkOrders ?? []
+                      const activeWorkOrdersById = new Map(
+                        sessionActiveWorkOrders.map((workOrder) => [workOrder.id, workOrder]),
+                      )
+                      const matchedSessionActiveWorkOrders: ActiveWorkOrder[] = sessionWorkOrderExpenses
+                        .map((expense) =>
+                          expense.linkedWorkOrderId ? activeWorkOrdersById.get(expense.linkedWorkOrderId) : undefined,
+                        )
+                        .filter((workOrder): workOrder is ActiveWorkOrder => Boolean(workOrder))
 
-                      activeWorkOrders.forEach((workOrder) => {
-                        const workOrderKey = `${workOrder.location}::${workOrder.type}`
-                        const nextWorkOrdersForKey = activeWorkOrderFallbackByKey.get(workOrderKey) ?? []
-                        activeWorkOrderFallbackByKey.set(workOrderKey, [...nextWorkOrdersForKey, workOrder])
-                      })
-
-                      sessionWorkOrderExpenses.forEach((expense) => {
-                        let matchedWorkOrder: ActiveWorkOrder | undefined
-
-                        if (expense.linkedWorkOrderId) {
-                          const linkedWorkOrder = activeWorkOrdersById.get(expense.linkedWorkOrderId)
-                          if (linkedWorkOrder && !matchedActiveWorkOrderIds.has(linkedWorkOrder.id)) {
-                            matchedWorkOrder = linkedWorkOrder
-                          }
-                        }
-
-                        if (!matchedWorkOrder && expense.location && expense.processingType) {
-                          const fallbackKey = `${expense.location}::${expense.processingType}`
-                          const fallbackWorkOrders = activeWorkOrderFallbackByKey.get(fallbackKey) ?? []
-                          const fallbackCandidate = fallbackWorkOrders.find(
-                            (workOrder) => !matchedActiveWorkOrderIds.has(workOrder.id),
-                          )
-
-                          if (fallbackCandidate) {
-                            matchedWorkOrder = fallbackCandidate
-                          }
-                        }
-
-                        if (matchedWorkOrder) {
-                          matchedActiveWorkOrderIds.add(matchedWorkOrder.id)
-                          sessionActiveWorkOrders.push(matchedWorkOrder)
-                        }
-                      })
-
-                      const sessionActiveWorkOrderCount = sessionActiveWorkOrders.length
+                      const sessionActiveWorkOrderCount = matchedSessionActiveWorkOrders.length
 
                       const sessionCompletedWorkOrderCount = Math.max(
                         sessionWorkOrderExpenses.length - sessionActiveWorkOrderCount,
@@ -2201,9 +2125,9 @@ function App() {
                             <span className="active-session-work-orders-label">
                               Active Work Order Count: {sessionActiveWorkOrderCount}
                             </span>
-                            {sessionActiveWorkOrders.length > 0 ? (
+                            {matchedSessionActiveWorkOrders.length > 0 ? (
                               <div className="active-session-work-order-timers">
-                                {sessionActiveWorkOrders.map((workOrder) => (
+                                {matchedSessionActiveWorkOrders.map((workOrder) => (
                                   <span key={`${session.id}-${workOrder.id}`}>
                                     {workOrder.location}: {formatWorkOrderTimer(workOrder)}
                                   </span>

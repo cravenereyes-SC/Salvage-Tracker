@@ -29,8 +29,8 @@
       "totalCosts": 0
     },
     "sessions": {
-      "totalSessions": 5,
-      "salvageSessions": 5,
+      "totalSessions": 10,
+      "salvageSessions": 10,
       "miningSessions": 0,
       "totalProfit": 0
     },
@@ -41,6 +41,13 @@
         "type": "Dinyx Solventation",
         "startedAt": 1783520337724,
         "functioningTimeMinutes": 178.3
+      },
+      {
+        "id": "1783520730727-5ny62s",
+        "location": "ARC-L1 Wide Forest Station",
+        "type": "Dinyx Solventation",
+        "startedAt": 1783520730727,
+        "functioningTimeMinutes": 50
       }
     ]
   }
