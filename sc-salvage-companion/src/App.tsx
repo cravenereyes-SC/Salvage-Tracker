@@ -219,6 +219,9 @@ const WORK_ORDER_PROCESSING_MAP: Record<(typeof WORK_ORDER_PROCESSING_TYPES)[num
   'Sinder Molecularization': { cost: 6100, functioningTimeMinutes: 150 },
 }
 
+const TIME_59_OPTIONS = Array.from({ length: 60 }, (_, index) => index)
+const TIME_HOUR_OPTIONS = Array.from({ length: 100 }, (_, index) => index)
+
 const EXPENSE_TYPE_COST_MAP: Record<(typeof EXPENSE_TYPES)[number], number> = {
   Fuel: 1500,
   Repairs: 3000,
@@ -350,6 +353,24 @@ function ensureUserProfile(raw: UserProfile): UserProfile {
 
 function toAuec(value: number): string {
   return `${auecFormatter.format(value)} aUEC`
+}
+
+function minutesToHmsParts(valueInMinutes: number): { hours: number; minutes: number; seconds: number } {
+  const totalSeconds = Math.max(Math.round(valueInMinutes * 60), 0)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return { hours, minutes, seconds }
+}
+
+function formatDurationHms(totalSecondsInput: number): string {
+  const totalSeconds = Math.max(Math.floor(totalSecondsInput), 0)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds
+    .toString()
+    .padStart(2, '0')}`
 }
 
 function toDateTimeLocalValue(isoDate: string): string {
@@ -491,7 +512,10 @@ function App() {
   const [expenseError, setExpenseError] = useState('')
   const [expenseLocationInput, setExpenseLocationInput] = useState<string>(REFINERY_STATION_OPTIONS[0])
   const [expenseProcessingTypeInput, setExpenseProcessingTypeInput] = useState<(typeof WORK_ORDER_PROCESSING_TYPES)[number]>('Dinyx Solventation')
-  const [expenseFunctioningTimeInput, setExpenseFunctioningTimeInput] = useState(WORK_ORDER_PROCESSING_MAP['Dinyx Solventation'].functioningTimeMinutes)
+  const defaultProcessingTimeParts = minutesToHmsParts(WORK_ORDER_PROCESSING_MAP['Dinyx Solventation'].functioningTimeMinutes)
+  const [expenseProcessingHoursInput, setExpenseProcessingHoursInput] = useState(defaultProcessingTimeParts.hours)
+  const [expenseProcessingMinutesInput, setExpenseProcessingMinutesInput] = useState(defaultProcessingTimeParts.minutes)
+  const [expenseProcessingSecondsInput, setExpenseProcessingSecondsInput] = useState(defaultProcessingTimeParts.seconds)
   const [showSoldWorkOrderOverlay, setShowSoldWorkOrderOverlay] = useState(false)
   const [soldWorkOrderId, setSoldWorkOrderId] = useState<string | null>(null)
   const [soldAmountInput, setSoldAmountInput] = useState(0)
@@ -760,44 +784,6 @@ function App() {
       setShowAddExpenseOverlay(false)
       setShowSoldWorkOrderOverlay(false)
       setAuthView('profile')
-    }
-
-    setSessionError('')
-  }
-
-  async function completeActiveWorkOrder(workOrderId: string) {
-    if (!profile) {
-      return
-    }
-
-    const nextUser: UserProfile = {
-      ...profile,
-      activeWorkOrders: profile.activeWorkOrders.filter((workOrder) => workOrder.id !== workOrderId),
-    }
-
-    setProfile(nextUser)
-    persistProfile(nextUser)
-
-    try {
-      const response = await fetch('/api/profile/update-work-orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: nextUser.email,
-          activeWorkOrders: nextUser.activeWorkOrders,
-        }),
-      })
-
-      if (!response.ok) {
-        const data = (await response.json()) as { error?: string }
-        setSessionError(data.error ?? 'Saved locally, but could not sync work order completion.')
-        return
-      }
-    } catch {
-      setSessionError('Saved locally, but could not sync work order completion.')
-      return
     }
 
     setSessionError('')
@@ -1189,7 +1175,10 @@ function App() {
     setExpenseCostInput(EXPENSE_TYPE_COST_MAP.Fuel)
     setExpenseLocationInput(REFINERY_STATION_OPTIONS[0])
     setExpenseProcessingTypeInput('Dinyx Solventation')
-    setExpenseFunctioningTimeInput(WORK_ORDER_PROCESSING_MAP['Dinyx Solventation'].functioningTimeMinutes)
+    const processingTimeParts = minutesToHmsParts(WORK_ORDER_PROCESSING_MAP['Dinyx Solventation'].functioningTimeMinutes)
+    setExpenseProcessingHoursInput(processingTimeParts.hours)
+    setExpenseProcessingMinutesInput(processingTimeParts.minutes)
+    setExpenseProcessingSecondsInput(processingTimeParts.seconds)
     setExpenseError('')
     setShowAddExpenseOverlay(true)
   }
@@ -1207,9 +1196,7 @@ function App() {
     const elapsedSeconds = Math.floor((trackerNow - expense.startedAt) / 1000)
     const totalSeconds = expense.functioningTimeMinutes * 60
     const remainingSeconds = Math.max(totalSeconds - elapsedSeconds, 0)
-    const minutes = Math.floor(remainingSeconds / 60)
-    const seconds = remainingSeconds % 60
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+    return formatDurationHms(remainingSeconds)
   }
 
   function getWorkOrderRemainingSeconds(workOrder: ActiveWorkOrder): number {
@@ -1219,16 +1206,7 @@ function App() {
 
   function formatWorkOrderTimer(workOrder: ActiveWorkOrder): string {
     const remainingSeconds = getWorkOrderRemainingSeconds(workOrder)
-    const minutes = Math.floor(remainingSeconds / 60)
-    const seconds = remainingSeconds % 60
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-  }
-
-  function formatSessionTimer(session: ActiveSession): string {
-    const elapsedSeconds = Math.max(Math.floor((trackerNow - session.startedAt) / 1000), 0)
-    const minutes = Math.floor(elapsedSeconds / 60)
-    const seconds = elapsedSeconds % 60
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+    return formatDurationHms(remainingSeconds)
   }
 
   function getSessionExpenseDescription(expense: SessionExpense): string {
@@ -1349,8 +1327,21 @@ function App() {
         return
       }
 
-      if (expenseFunctioningTimeInput <= 0) {
-        setExpenseError('Functioning time must be greater than zero.')
+      if (
+        expenseProcessingHoursInput < 0 ||
+        expenseProcessingMinutesInput < 0 ||
+        expenseProcessingMinutesInput > 59 ||
+        expenseProcessingSecondsInput < 0 ||
+        expenseProcessingSecondsInput > 59
+      ) {
+        setExpenseError('Processing Time must use valid hh:mm:ss values.')
+        return
+      }
+
+      const totalProcessingSeconds =
+        expenseProcessingHoursInput * 3600 + expenseProcessingMinutesInput * 60 + expenseProcessingSecondsInput
+      if (totalProcessingSeconds <= 0) {
+        setExpenseError('Processing Time must be greater than zero.')
         return
       }
 
@@ -1359,7 +1350,7 @@ function App() {
         return
       }
 
-      const normalizedFunctioningTime = Math.round(expenseFunctioningTimeInput)
+      const normalizedFunctioningTime = totalProcessingSeconds / 60
 
       nextWorkOrder = createActiveWorkOrder(location, processingType, normalizedFunctioningTime)
       nextExpense = createWorkOrderExpense(
@@ -1908,7 +1899,12 @@ function App() {
                             const nextProcessingType = event.target.value as (typeof WORK_ORDER_PROCESSING_TYPES)[number]
                             setExpenseProcessingTypeInput(nextProcessingType)
                             setExpenseCostInput(WORK_ORDER_PROCESSING_MAP[nextProcessingType].cost)
-                            setExpenseFunctioningTimeInput(WORK_ORDER_PROCESSING_MAP[nextProcessingType].functioningTimeMinutes)
+                            const processingTimeParts = minutesToHmsParts(
+                              WORK_ORDER_PROCESSING_MAP[nextProcessingType].functioningTimeMinutes,
+                            )
+                            setExpenseProcessingHoursInput(processingTimeParts.hours)
+                            setExpenseProcessingMinutesInput(processingTimeParts.minutes)
+                            setExpenseProcessingSecondsInput(processingTimeParts.seconds)
                           }}
                         >
                           {WORK_ORDER_PROCESSING_TYPES.map((processingType) => (
@@ -1920,14 +1916,44 @@ function App() {
                       </label>
 
                       <label>
-                        Functioning Time (min)
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={expenseFunctioningTimeInput}
-                          onChange={(event) => setExpenseFunctioningTimeInput(Number(event.target.value))}
-                        />
+                        Processing Time (hh:mm:ss)
+                        <div className="processing-time-inputs">
+                          <select
+                            aria-label="Processing Time Hours"
+                            value={expenseProcessingHoursInput}
+                            onChange={(event) => setExpenseProcessingHoursInput(Number(event.target.value))}
+                          >
+                            {TIME_HOUR_OPTIONS.map((hourValue) => (
+                              <option key={hourValue} value={hourValue}>
+                                {hourValue.toString().padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                          <span>:</span>
+                          <select
+                            aria-label="Processing Time Minutes"
+                            value={expenseProcessingMinutesInput}
+                            onChange={(event) => setExpenseProcessingMinutesInput(Number(event.target.value))}
+                          >
+                            {TIME_59_OPTIONS.map((minuteValue) => (
+                              <option key={minuteValue} value={minuteValue}>
+                                {minuteValue.toString().padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                          <span>:</span>
+                          <select
+                            aria-label="Processing Time Seconds"
+                            value={expenseProcessingSecondsInput}
+                            onChange={(event) => setExpenseProcessingSecondsInput(Number(event.target.value))}
+                          >
+                            {TIME_59_OPTIONS.map((secondValue) => (
+                              <option key={secondValue} value={secondValue}>
+                                {secondValue.toString().padStart(2, '0')}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </label>
                     </>
                   ) : null}
@@ -2118,26 +2144,75 @@ function App() {
                   <ul className="active-sessions-list">
                     {activeSessions.map((session) => {
                       const sessionExpenseTotal = session.expenses.reduce((total, expense) => total + expense.cost, 0)
+                      const sessionWorkOrderExpenses = session.expenses.filter((expense) => expense.type === 'Work Orders')
+                      const activeWorkOrdersById = new Map(activeWorkOrders.map((workOrder) => [workOrder.id, workOrder]))
+                      const activeWorkOrderFallbackByKey = new Map<string, ActiveWorkOrder[]>()
+                      const matchedActiveWorkOrderIds = new Set<string>()
+                      const sessionActiveWorkOrders: ActiveWorkOrder[] = []
+
+                      activeWorkOrders.forEach((workOrder) => {
+                        const workOrderKey = `${workOrder.location}::${workOrder.type}`
+                        const nextWorkOrdersForKey = activeWorkOrderFallbackByKey.get(workOrderKey) ?? []
+                        activeWorkOrderFallbackByKey.set(workOrderKey, [...nextWorkOrdersForKey, workOrder])
+                      })
+
+                      sessionWorkOrderExpenses.forEach((expense) => {
+                        let matchedWorkOrder: ActiveWorkOrder | undefined
+
+                        if (expense.linkedWorkOrderId) {
+                          const linkedWorkOrder = activeWorkOrdersById.get(expense.linkedWorkOrderId)
+                          if (linkedWorkOrder && !matchedActiveWorkOrderIds.has(linkedWorkOrder.id)) {
+                            matchedWorkOrder = linkedWorkOrder
+                          }
+                        }
+
+                        if (!matchedWorkOrder && expense.location && expense.processingType) {
+                          const fallbackKey = `${expense.location}::${expense.processingType}`
+                          const fallbackWorkOrders = activeWorkOrderFallbackByKey.get(fallbackKey) ?? []
+                          const fallbackCandidate = fallbackWorkOrders.find(
+                            (workOrder) => !matchedActiveWorkOrderIds.has(workOrder.id),
+                          )
+
+                          if (fallbackCandidate) {
+                            matchedWorkOrder = fallbackCandidate
+                          }
+                        }
+
+                        if (matchedWorkOrder) {
+                          matchedActiveWorkOrderIds.add(matchedWorkOrder.id)
+                          sessionActiveWorkOrders.push(matchedWorkOrder)
+                        }
+                      })
+
+                      const sessionActiveWorkOrderCount = sessionActiveWorkOrders.length
+
+                      const sessionCompletedWorkOrderCount = Math.max(
+                        sessionWorkOrderExpenses.length - sessionActiveWorkOrderCount,
+                        0,
+                      )
+
                       return (
                         <li key={session.id}>
                           <div>
                             <strong>{session.name}</strong>
                             <span>Type: {session.type}</span>
                             <span>Started {new Date(session.startedAt).toLocaleString()}</span>
-                            <span>Timer: {formatSessionTimer(session)}</span>
                             <span>Expenses: {toAuec(sessionExpenseTotal)}</span>
                             <span className="active-session-work-orders-label">
-                              Work Orders Count: {activeWorkOrders.length}
+                              Active Work Order Count: {sessionActiveWorkOrderCount}
                             </span>
-                            {activeWorkOrders.length > 0 ? (
+                            {sessionActiveWorkOrders.length > 0 ? (
                               <div className="active-session-work-order-timers">
-                                {activeWorkOrders.map((workOrder) => (
-                                  <span key={workOrder.id}>
+                                {sessionActiveWorkOrders.map((workOrder) => (
+                                  <span key={`${session.id}-${workOrder.id}`}>
                                     {workOrder.location}: {formatWorkOrderTimer(workOrder)}
                                   </span>
                                 ))}
                               </div>
                             ) : null}
+                            <span className="active-session-work-orders-label">
+                              Completed Work Order Count: {sessionCompletedWorkOrderCount}
+                            </span>
                           </div>
                           <div className="active-session-actions">
                             <button

@@ -572,6 +572,21 @@
   cursor: pointer;
 }
 
+.processing-time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.processing-time-inputs select {
+  min-width: 4.2rem;
+}
+
+.processing-time-inputs span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .owned-ships-header {
   display: flex;
   align-items: center;

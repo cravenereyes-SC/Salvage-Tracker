@@ -24,16 +24,24 @@
       }
     ],
     "financial": {
-      "currentBalance": 1000000000,
-      "totalEarnings": 0,
+      "currentBalance": 1000020000,
+      "totalEarnings": 20000,
       "totalCosts": 0
     },
     "sessions": {
-      "totalSessions": 2,
-      "salvageSessions": 2,
+      "totalSessions": 5,
+      "salvageSessions": 5,
       "miningSessions": 0,
       "totalProfit": 0
     },
-    "activeWorkOrders": []
+    "activeWorkOrders": [
+      {
+        "id": "1783520337724-cobr9b",
+        "location": "ARC-L1 Wide Forest Station",
+        "type": "Dinyx Solventation",
+        "startedAt": 1783520337724,
+        "functioningTimeMinutes": 178.3
+      }
+    ]
   }
 ]
