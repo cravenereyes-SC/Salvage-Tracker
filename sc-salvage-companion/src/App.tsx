@@ -196,6 +196,7 @@ function App() {
   const [addShipCargoCapacity, setAddShipCargoCapacity] = useState(0)
   const [addShipFunction, setAddShipFunction] = useState('')
   const [addShipError, setAddShipError] = useState('')
+  const [shipUpdateError, setShipUpdateError] = useState('')
   const [showFinancialOverlay, setShowFinancialOverlay] = useState(false)
   const [financialBalanceInput, setFinancialBalanceInput] = useState(0)
   const [financialEarningsInput, setFinancialEarningsInput] = useState(0)
@@ -557,6 +558,7 @@ function App() {
     const nextUser: UserProfile = {
       ...profile,
       ownedShips: [...profile.ownedShips, nextShip],
+      ship: profile.ship || nextShip.name,
     }
 
     setProfile(nextUser)
@@ -581,6 +583,48 @@ function App() {
 
     setShowAddShipOverlay(false)
   }
+
+  async function selectPrimaryShip(nextShipName: string) {
+    if (!profile) {
+      setShipUpdateError('Profile not loaded.')
+      return
+    }
+
+    const nextShip = nextShipName.trim()
+    const nextUser: UserProfile = {
+      ...profile,
+      ship: nextShip,
+    }
+
+    setShipUpdateError('')
+    setProfile(nextUser)
+    persistProfile(nextUser)
+
+    try {
+      const response = await fetch('/api/profile/update-owned-ships', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: nextUser.email,
+          ship: nextUser.ship,
+          ownedShips: nextUser.ownedShips,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string }
+        setShipUpdateError(data.error ?? 'Saved locally, but could not sync active ship.')
+      }
+    } catch {
+      setShipUpdateError('Saved locally, but could not sync active ship.')
+    }
+  }
+
+  const ownedShipNames = Array.from(
+    new Set((profile?.ownedShips ?? []).map((ownedShip) => ownedShip.name).filter((name) => name.trim())),
+  )
 
   return (
     <div className={`auth-shell ${authView === 'profile' ? 'profile-shell' : ''}`}>
@@ -769,7 +813,20 @@ function App() {
             </div>
             <div>
               <span>Ship</span>
-              <strong>{profile?.ship ?? 'None selected'}</strong>
+              <select
+                value={profile?.ship ?? ''}
+                onChange={(event) => {
+                  void selectPrimaryShip(event.target.value)
+                }}
+              >
+                <option value="">None selected</option>
+                {ownedShipNames.map((shipName) => (
+                  <option key={shipName} value={shipName}>
+                    {shipName}
+                  </option>
+                ))}
+              </select>
+              {shipUpdateError ? <p className="auth-error">{shipUpdateError}</p> : null}
             </div>
           </div>
 
