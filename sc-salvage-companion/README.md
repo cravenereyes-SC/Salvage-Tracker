@@ -1,5 +1,10 @@
 # SC Salvage Companion
 
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Lint](https://img.shields.io/badge/lint-passing-brightgreen)
+![Beta](https://img.shields.io/badge/release-v0.1.0--beta.1-blue)
+![Status](https://img.shields.io/badge/status-beta-orange)
+
 Star Citizen salvage/mining companion app with:
 - user auth and profile
 - financial tracking

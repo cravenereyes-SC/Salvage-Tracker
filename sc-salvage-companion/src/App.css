@@ -201,6 +201,20 @@
   margin: 0;
 }
 
+.beta-feedback-link {
+  width: fit-content;
+  color: var(--brand);
+  font-size: 0.78rem;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(255, 176, 61, 0.55);
+  padding-bottom: 0.1rem;
+}
+
+.beta-feedback-link:hover {
+  color: var(--text);
+  border-bottom-color: rgba(255, 255, 255, 0.7);
+}
+
 .profile-command-section {
   display: grid;
   gap: 0.35rem;

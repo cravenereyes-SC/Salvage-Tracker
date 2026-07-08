@@ -2027,6 +2027,14 @@ function App() {
               <button type="button" className="auth-submit profile-more-button" onClick={openMoreOverlay}>
                 More
               </button>
+              <a
+                className="beta-feedback-link"
+                href="https://forms.gle/ULnCiDUguMU5gi226"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Submit Beta Feedback
+              </a>
 
               <section className="profile-command-section">
                 <p className="auth-subhead">
