@@ -9,12 +9,17 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const DATA_DIR = path.join(__dirname, 'data')
 const USERS_FILE = path.join(DATA_DIR, 'users.json')
-const PORT = 8787
+const DIST_DIR = path.join(__dirname, '..', 'dist')
+const PORT = Number(process.env.PORT) || 8787
 const cargoCapacityCache = new Map()
 
 const app = express()
 
-app.use(cors({ origin: 'http://localhost:5173' }))
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : ['http://localhost:5173']
+
+app.use(cors({ origin: corsOrigins }))
 app.use(express.json())
 
 async function ensureDataStore() {
@@ -487,6 +492,14 @@ app.get('/api/ships/cargo-capacity', async (req, res) => {
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ ok: true })
 })
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(DIST_DIR))
+
+  app.get(/^(?!\/api).*/, async (_req, res) => {
+    res.sendFile(path.join(DIST_DIR, 'index.html'))
+  })
+}
 
 app.listen(PORT, () => {
   console.log(`Auth server running on http://localhost:${PORT}`)
