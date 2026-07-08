@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename)
 const DATA_DIR = path.join(__dirname, 'data')
 const USERS_FILE = path.join(DATA_DIR, 'users.json')
 const PORT = 8787
+const cargoCapacityCache = new Map()
 
 const app = express()
 
@@ -42,6 +43,75 @@ function normalizeEmail(email) {
 
 function normalizeCallsign(callsign) {
   return String(callsign ?? '').trim().toLowerCase()
+}
+
+function normalizeShipName(name) {
+  return String(name ?? '').trim()
+}
+
+async function queryCargoCapacityByTitle(title) {
+  const query = `[[${title}]]|?Cargo capacity`
+  const url = `https://starcitizen.tools/api.php?action=ask&query=${encodeURIComponent(query)}&format=json`
+
+  const response = await fetch(url)
+  if (!response.ok) {
+    return null
+  }
+
+  const payload = await response.json()
+  const firstResult = Object.values(payload?.query?.results ?? {})[0]
+  const value = firstResult?.printouts?.['Cargo capacity']?.[0]
+  const capacity = Number(value)
+
+  if (!Number.isFinite(capacity) || capacity < 0) {
+    return null
+  }
+
+  return Math.round(capacity)
+}
+
+async function fetchCargoCapacityFromInternet(shipName) {
+  const normalized = normalizeShipName(shipName)
+  if (!normalized) {
+    return null
+  }
+
+  if (cargoCapacityCache.has(normalized.toLowerCase())) {
+    return cargoCapacityCache.get(normalized.toLowerCase())
+  }
+
+  const directCandidates = [
+    normalized,
+    normalized.replace(/\s+b\/?i\/?s$/i, '').trim(),
+    normalized.replace(/^(Drake|Anvil|Aegis|MISC|Origin|RSI|Crusader|Argo|Mirai)\s+/i, '').trim(),
+  ].filter(Boolean)
+
+  for (const candidate of directCandidates) {
+    const capacity = await queryCargoCapacityByTitle(candidate)
+    if (capacity !== null) {
+      cargoCapacityCache.set(normalized.toLowerCase(), capacity)
+      return capacity
+    }
+  }
+
+  const searchUrl = `https://starcitizen.tools/api.php?action=opensearch&search=${encodeURIComponent(normalized)}&limit=5&namespace=0&format=json`
+  const searchResponse = await fetch(searchUrl)
+  if (!searchResponse.ok) {
+    return null
+  }
+
+  const searchPayload = await searchResponse.json()
+  const titles = Array.isArray(searchPayload?.[1]) ? searchPayload[1] : []
+
+  for (const title of titles) {
+    const capacity = await queryCargoCapacityByTitle(String(title))
+    if (capacity !== null) {
+      cargoCapacityCache.set(normalized.toLowerCase(), capacity)
+      return capacity
+    }
+  }
+
+  return null
 }
 
 function hashPassword(password, salt) {
@@ -262,6 +332,26 @@ app.post('/api/profile/update-details', async (req, res) => {
 
   await writeUsers(users)
   return res.status(200).json({ ok: true, user: sanitizeUser(users[index]) })
+})
+
+app.get('/api/ships/cargo-capacity', async (req, res) => {
+  const shipName = normalizeShipName(req.query.name)
+
+  if (!shipName) {
+    return res.status(400).json({ error: 'Ship name is required.' })
+  }
+
+  try {
+    const cargoCapacity = await fetchCargoCapacityFromInternet(shipName)
+
+    if (cargoCapacity === null) {
+      return res.status(404).json({ error: 'Cargo capacity not found for ship.' })
+    }
+
+    return res.status(200).json({ ship: shipName, cargoCapacity, source: 'starcitizen.tools' })
+  } catch {
+    return res.status(502).json({ error: 'Unable to reach external ship data source.' })
+  }
 })
 
 app.get('/api/health', (_req, res) => {

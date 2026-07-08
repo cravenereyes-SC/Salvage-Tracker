@@ -46,11 +46,92 @@ const AUTH_STORAGE_KEY = 'sc-auth-session-v1'
 const SHIP_CHOICES = [
   'Vulture',
   'Reclaimer',
+  'SRV',
   'Prospector',
   'Mole',
+  'ROC',
+  'ROC-DS',
+  'Drake Cutter',
+  'Drake Cutlass Black',
+  'Drake Cutlass Red',
+  'Drake Cutlass Blue',
+  'Drake Corsair',
+  'Drake Caterpillar',
+  'Anvil C8 Pisces',
+  'Anvil C8R Pisces',
+  'Anvil Arrow',
+  'Anvil Gladius',
+  'Anvil Terrapin',
+  'Anvil Carrack',
+  'Aegis Avenger Titan',
+  'Aegis Vanguard Warden',
+  'Aegis Redeemer',
+  'Aegis Hammerhead',
+  'Aegis Reclaimer BIS',
+  'MISC Freelancer',
   'Constellation Taurus',
+  'Constellation Andromeda',
+  'Constellation Aquila',
+  'Constellation Phoenix',
   'Freelancer MAX',
+  'Argo RAFT',
+  'Argo MPUV Cargo',
+  'Crusader C1 Spirit',
+  'Crusader A1 Spirit',
+  'Crusader Hercules C2',
+  'Crusader Mercury Star Runner',
+  'Origin 315p',
+  'Origin 400i',
+  'Origin 600i Explorer',
+  'RSI Scorpius',
+  'RSI Zeus Mk II CL',
+  'RSI Polaris',
 ]
+
+const SHIP_FUNCTION_MAP: Record<string, string> = {
+  Vulture: 'Salvage',
+  Reclaimer: 'Salvage',
+  SRV: 'Towing and Support',
+  Prospector: 'Mining',
+  Mole: 'Mining',
+  ROC: 'Ground Mining',
+  'ROC-DS': 'Ground Mining',
+  'Drake Cutter': 'Light Cargo and Utility',
+  'Drake Cutlass Black': 'Multirole',
+  'Drake Cutlass Red': 'Medical and Rescue',
+  'Drake Cutlass Blue': 'Interdiction and Patrol',
+  'Drake Corsair': 'Exploration and Combat',
+  'Drake Caterpillar': 'Cargo Hauling',
+  'Anvil C8 Pisces': 'Shuttle and Utility',
+  'Anvil C8R Pisces': 'Medical and Rescue',
+  'Anvil Arrow': 'Light Fighter',
+  'Anvil Gladius': 'Light Fighter',
+  'Anvil Terrapin': 'Reconnaissance',
+  'Anvil Carrack': 'Exploration',
+  'Aegis Avenger Titan': 'Light Cargo and Combat',
+  'Aegis Vanguard Warden': 'Heavy Fighter',
+  'Aegis Redeemer': 'Gunship',
+  'Aegis Hammerhead': 'Patrol Gunship',
+  'Aegis Reclaimer BIS': 'Salvage',
+  'MISC Freelancer': 'Cargo Hauling',
+  'Constellation Taurus': 'Cargo Hauling',
+  'Constellation Andromeda': 'Multirole',
+  'Constellation Aquila': 'Exploration',
+  'Constellation Phoenix': 'Luxury Transport',
+  'Freelancer MAX': 'Cargo Hauling',
+  'Argo RAFT': 'Cargo Hauling',
+  'Argo MPUV Cargo': 'Cargo Shuttle',
+  'Crusader C1 Spirit': 'Cargo Hauling',
+  'Crusader A1 Spirit': 'Bomber',
+  'Crusader Hercules C2': 'Heavy Cargo Hauling',
+  'Crusader Mercury Star Runner': 'Data and Cargo Running',
+  'Origin 315p': 'Exploration',
+  'Origin 400i': 'Touring and Exploration',
+  'Origin 600i Explorer': 'Exploration',
+  'RSI Scorpius': 'Heavy Fighter',
+  'RSI Zeus Mk II CL': 'Cargo Hauling',
+  'RSI Polaris': 'Capital Combat',
+}
 
 const ROLE_CHOICES = ['Salvager', 'Miner', 'Hybrid Operator', 'Fleet Lead']
 
@@ -120,6 +201,40 @@ function toDateTimeLocalValue(isoDate: string): string {
 
   const timezoneOffsetMs = parsed.getTimezoneOffset() * 60000
   return new Date(parsed.getTime() - timezoneOffsetMs).toISOString().slice(0, 16)
+}
+
+function inferShipFunction(shipName: string): string {
+  const normalized = shipName.trim()
+  if (!normalized) {
+    return ''
+  }
+
+  const mapped = SHIP_FUNCTION_MAP[normalized]
+  if (mapped) {
+    return mapped
+  }
+
+  if (/prospector|mole|roc/i.test(normalized)) {
+    return 'Mining'
+  }
+
+  if (/vulture|reclaimer|salvage/i.test(normalized)) {
+    return 'Salvage'
+  }
+
+  if (/raft|cargo|freelancer|taurus|caterpillar|hercules/i.test(normalized)) {
+    return 'Cargo Hauling'
+  }
+
+  if (/arrow|gladius|vanguard|scorpius/i.test(normalized)) {
+    return 'Combat'
+  }
+
+  if (/aquila|carrack|explorer|400i|315p/i.test(normalized)) {
+    return 'Exploration'
+  }
+
+  return 'Multirole'
 }
 
 function readStoredSession(): { session: AuthSession; storage: SessionStorageType } | null {
@@ -196,6 +311,7 @@ function App() {
   const [addShipCargoCapacity, setAddShipCargoCapacity] = useState(0)
   const [addShipFunction, setAddShipFunction] = useState('')
   const [addShipError, setAddShipError] = useState('')
+  const [isCargoCapacityLoading, setIsCargoCapacityLoading] = useState(false)
   const [shipUpdateError, setShipUpdateError] = useState('')
   const [showFinancialOverlay, setShowFinancialOverlay] = useState(false)
   const [financialBalanceInput, setFinancialBalanceInput] = useState(0)
@@ -363,12 +479,46 @@ function App() {
     setAddShipCargoCapacity(0)
     setAddShipFunction('')
     setAddShipError('')
+    setIsCargoCapacityLoading(false)
     setShowAddShipOverlay(true)
   }
 
   function closeAddShipOverlay() {
     setShowAddShipOverlay(false)
     setAddShipError('')
+    setIsCargoCapacityLoading(false)
+  }
+
+  async function autoFillCargoCapacity(shipName: string) {
+    const normalized = shipName.trim()
+    if (!normalized) {
+      setAddShipCargoCapacity(0)
+      return
+    }
+
+    setIsCargoCapacityLoading(true)
+
+    try {
+      const response = await fetch(`/api/ships/cargo-capacity?name=${encodeURIComponent(normalized)}`)
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string }
+        setAddShipError(data.error ?? 'Could not auto-load cargo capacity. Enter manually.')
+        return
+      }
+
+      const data = (await response.json()) as { cargoCapacity?: number }
+      const nextCapacity = Number(data.cargoCapacity)
+
+      if (Number.isFinite(nextCapacity) && nextCapacity >= 0) {
+        setAddShipCargoCapacity(Math.round(nextCapacity))
+        setAddShipError('')
+      }
+    } catch {
+      setAddShipError('Could not auto-load cargo capacity. Enter manually.')
+    } finally {
+      setIsCargoCapacityLoading(false)
+    }
   }
 
   function openFinancialOverlay() {
@@ -582,6 +732,45 @@ function App() {
     }
 
     setShowAddShipOverlay(false)
+  }
+
+  async function removeOwnedShip(shipId: string) {
+    if (!profile) {
+      return
+    }
+
+    const remainingShips = profile.ownedShips.filter((ownedShip) => ownedShip.id !== shipId)
+    const hasCurrentShip = remainingShips.some((ownedShip) => ownedShip.name === profile.ship)
+
+    const nextUser: UserProfile = {
+      ...profile,
+      ownedShips: remainingShips,
+      ship: hasCurrentShip ? profile.ship : remainingShips[0]?.name ?? '',
+    }
+
+    setProfile(nextUser)
+    persistProfile(nextUser)
+
+    try {
+      const response = await fetch('/api/profile/update-owned-ships', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: nextUser.email,
+          ship: nextUser.ship,
+          ownedShips: nextUser.ownedShips,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = (await response.json()) as { error?: string }
+        setAddShipError(data.error ?? 'Saved locally, but could not sync ship removal.')
+      }
+    } catch {
+      setAddShipError('Saved locally, but could not sync ship removal.')
+    }
   }
 
   async function selectPrimaryShip(nextShipName: string) {
@@ -897,6 +1086,16 @@ function App() {
                     <strong>{ownedShip.name}</strong>
                     <span>Cargo: {ownedShip.cargoCapacity.toLocaleString()} SCU</span>
                     <span>Function: {ownedShip.functionLabel}</span>
+                    <button
+                      type="button"
+                      className="remove-ship-button"
+                      onClick={() => {
+                        void removeOwnedShip(ownedShip.id)
+                      }}
+                      aria-label={`Remove ${ownedShip.name}`}
+                    >
+                      Remove
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -921,7 +1120,12 @@ function App() {
                     Ship Name
                     <select
                       value={addShipName}
-                      onChange={(event) => setAddShipName(event.target.value)}
+                      onChange={(event) => {
+                        const selectedShip = event.target.value
+                        setAddShipName(selectedShip)
+                        setAddShipFunction(inferShipFunction(selectedShip))
+                        void autoFillCargoCapacity(selectedShip)
+                      }}
                     >
                       <option value="">Choose ship</option>
                       {SHIP_CHOICES.map((shipChoice) => (
@@ -942,6 +1146,8 @@ function App() {
                       onChange={(event) => setAddShipCargoCapacity(Number(event.target.value))}
                     />
                   </label>
+
+                  {isCargoCapacityLoading ? <p className="auth-subhead">Fetching cargo capacity from internet...</p> : null}
 
                   <label>
                     Function

@@ -222,21 +222,23 @@
 
 .profile-grid select {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--panel-border);
+  background: linear-gradient(165deg, var(--panel-bg-soft), rgba(6, 26, 39, 0.9));
   border-radius: 10px;
   padding: 0.46rem 0.5rem;
-  color: rgba(247, 250, 255, 0.96);
+  color: var(--text);
   font: inherit;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(8px) saturate(140%);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.profile-grid select:focus {
+  outline: 2px solid var(--brand-soft);
+  outline-offset: 1px;
 }
 
 .profile-grid select option {
-  background: rgba(8, 18, 28, 0.96);
-  color: rgba(247, 250, 255, 0.96);
+  background: #0b2131;
+  color: var(--text);
 }
 
 .owned-ships-section {
@@ -351,11 +353,27 @@
   font-size: 0.86rem;
   display: grid;
   gap: 0.2rem;
+  position: relative;
+  padding-bottom: 2rem;
 }
 
 .owned-ships-list li span {
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+.remove-ship-button {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.4rem;
+  border: 1px solid rgba(255, 126, 126, 0.45);
+  background: linear-gradient(180deg, rgba(255, 95, 95, 0.28), rgba(255, 95, 95, 0.1));
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.7rem;
+  line-height: 1.1;
+  cursor: pointer;
 }
 
 .add-ship-button {
