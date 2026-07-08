@@ -10,7 +10,12 @@
     "server:start": "node server/index.js",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:server:bundle": "esbuild server/index.js --bundle --platform=node --format=esm --target=node18 --outfile=build/server.mjs",
+    "build:windows:launcher": "npm run build && npm run build:server:bundle && pkg build/server.mjs --targets node18-win-x64 --output release/win-app/SCSalvageCompanion.exe",
+    "build:windows:uninstaller": "pkg scripts/windows-uninstaller-entry.cjs --targets node18-win-x64 --output release/win-app/SCSalvageCompanion-Uninstall.exe",
+    "build:windows:installer": "npm run build:windows:launcher && npm run build:windows:uninstaller && node scripts/create-windows-installer.mjs",
+    "build:windows": "npm run build:windows:installer"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -24,8 +29,16 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "concurrently": "^10.0.3",
+    "esbuild": "^0.28.1",
     "oxlint": "^1.71.0",
+    "pkg": "^5.8.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
+  },
+  "pkg": {
+    "assets": [
+      "dist/**/*",
+      "build/installer-payload.zip"
+    ]
   }
 }

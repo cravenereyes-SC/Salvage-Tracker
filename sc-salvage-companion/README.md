@@ -29,6 +29,26 @@ Backend API: `http://localhost:8787`
 npm run build
 ```
 
+## Windows EXE Build
+
+Build both the installer EXE and app launcher EXE:
+
+```bash
+npm run build:windows
+```
+
+Generated artifacts:
+- `release/SCSalvageCompanion-Setup.exe` - installer EXE that installs the app and creates a desktop shortcut.
+- `release/win-app/SCSalvageCompanion.exe` - standalone launcher EXE for the app runtime.
+- `release/win-app/SCSalvageCompanion-Uninstall.exe` - standalone uninstaller EXE for the installed app.
+
+Install behavior:
+- Installs to `%LOCALAPPDATA%\\SCSalvageCompanion`
+- Creates desktop shortcut: `SC Salvage Companion.lnk`
+- Creates Start Menu folder: `SC Salvage Companion`
+- Creates Start Menu shortcuts for launch and uninstall
+- Launches the app after install
+
 ## Beta Deployment (Single Service)
 
 The backend now serves frontend static files in production, so you can deploy one service for both UI and API.

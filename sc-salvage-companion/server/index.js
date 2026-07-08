@@ -1,5 +1,6 @@
 import cors from 'cors'
 import express from 'express'
+import { exec } from 'node:child_process'
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -7,13 +8,22 @@ import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const DATA_DIR = path.join(__dirname, 'data')
+const isPackagedExecutable = Boolean(process.pkg)
+const appRuntimeDir = isPackagedExecutable ? path.dirname(process.execPath) : __dirname
+const DATA_DIR = isPackagedExecutable
+  ? path.join(process.env.APPDATA || appRuntimeDir, 'SCSalvageCompanion', 'data')
+  : path.join(__dirname, 'data')
 const USERS_FILE = path.join(DATA_DIR, 'users.json')
-const DIST_DIR = path.join(__dirname, '..', 'dist')
+const DIST_DIR = isPackagedExecutable ? path.join(appRuntimeDir, 'dist') : path.join(__dirname, '..', 'dist')
 const PORT = Number(process.env.PORT) || 8787
 const cargoCapacityCache = new Map()
 
 const app = express()
+
+function openAppInDefaultBrowser(url) {
+  const command = process.platform === 'win32' ? `start "" "${url}"` : `open "${url}"`
+  exec(command, { windowsHide: true }, () => {})
+}
 
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
@@ -502,5 +512,13 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.listen(PORT, () => {
-  console.log(`Auth server running on http://localhost:${PORT}`)
+  const baseUrl = `http://localhost:${PORT}`
+  console.log(`Auth server running on ${baseUrl}`)
+
+  const shouldOpenBrowser =
+    process.env.OPEN_BROWSER === '1' || (isPackagedExecutable && process.env.OPEN_BROWSER !== '0')
+
+  if (shouldOpenBrowser) {
+    openAppInDefaultBrowser(baseUrl)
+  }
 })
