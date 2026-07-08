@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Runtime server data (contains user credentials — never commit)
+server/data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
