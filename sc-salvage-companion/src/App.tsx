@@ -45,6 +45,7 @@ type SessionExpense = {
 
 type ActiveSession = {
   id: string
+  name: string
   type: (typeof SESSION_TYPES)[number]
   startedAt: number
   expenses: SessionExpense[]
@@ -246,6 +247,10 @@ function defaultSessions(): SessionMetrics {
     miningSessions: 0,
     totalProfit: 0,
   }
+}
+
+function generateSessionName(sessionType: (typeof SESSION_TYPES)[number], sessionNumber: number): string {
+  return `${sessionType} Session ${sessionNumber}`
 }
 
 function createOwnedShip(name: string, cargoCapacity: number, functionLabel: string): OwnedShip {
@@ -456,7 +461,7 @@ function App() {
   const [sessionError, setSessionError] = useState('')
   const [showStartSessionOverlay, setShowStartSessionOverlay] = useState(false)
   const [sessionTypeInput, setSessionTypeInput] = useState<(typeof SESSION_TYPES)[number]>('Salvage')
-  const [activeSessionType, setActiveSessionType] = useState<(typeof SESSION_TYPES)[number]>('Salvage')
+  const [activeSessionName, setActiveSessionName] = useState('Salvage Session 1')
   const [activeSessionExpenses, setActiveSessionExpenses] = useState<SessionExpense[]>([])
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -704,7 +709,7 @@ function App() {
 
   function loadSessionIntoTracker(session: ActiveSession) {
     setCurrentSessionId(session.id)
-    setActiveSessionType(session.type)
+    setActiveSessionName(session.name)
     setActiveSessionExpenses(session.expenses)
     setAuthView('session-tracker')
   }
@@ -1138,6 +1143,8 @@ function App() {
     const normalizedSessionType = sessionTypeInput.toLowerCase()
     const isSalvageSession = normalizedSessionType === 'salvage'
     const isMiningSession = normalizedSessionType === 'mining'
+    const nextSessionNumber = (profile.sessions?.totalSessions ?? 0) + 1
+    const nextSessionName = generateSessionName(sessionTypeInput, nextSessionNumber)
 
     const nextUser: UserProfile = {
       ...profile,
@@ -1151,6 +1158,7 @@ function App() {
 
     const nextSession: ActiveSession = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: nextSessionName,
       type: sessionTypeInput,
       startedAt: Date.now(),
       expenses: [],
@@ -1430,7 +1438,7 @@ function App() {
       ) : authView === 'session-tracker' ? (
         <article className="profile-paper profile-page">
           <p className="auth-kicker">Session Tracker</p>
-          <h1>{profile?.callsign || 'Pilot'} - {activeSessionType} Session</h1>
+            <h1>{activeSessionName}</h1>
           <p className="auth-subhead">Track expenses and profit for the current run.</p>
 
           <div className="session-tracker-actions">
@@ -1813,12 +1821,13 @@ function App() {
                       return (
                         <li key={session.id}>
                           <div>
-                            <strong>{session.type} Session</strong>
+                            <strong>{session.name}</strong>
+                            <span>Type: {session.type}</span>
                             <span>Started {new Date(session.startedAt).toLocaleString()}</span>
                             <span>Timer: {formatSessionTimer(session)}</span>
                             <span>Expenses: {toAuec(sessionExpenseTotal)}</span>
                             <span className="active-session-work-orders-label">
-                              Active Work Orders: {activeWorkOrders.length}
+                              Work Orders Count: {activeWorkOrders.length}
                             </span>
                             {activeWorkOrders.length > 0 ? (
                               <div className="active-session-work-order-timers">
@@ -1856,6 +1865,14 @@ function App() {
                 <p className="auth-kicker">Sessions</p>
                 <h2>Start New Session</h2>
                 <form className="profile-setup-form" onSubmit={submitStartSession}>
+                  <label>
+                    Session Name
+                    <input
+                      value={generateSessionName(sessionTypeInput, (profile?.sessions?.totalSessions ?? 0) + 1)}
+                      readOnly
+                    />
+                  </label>
+
                   <label>
                     Session Type
                     <select

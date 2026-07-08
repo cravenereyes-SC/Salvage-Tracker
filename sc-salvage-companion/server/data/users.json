@@ -29,9 +29,9 @@
       "totalCosts": 0
     },
     "sessions": {
-      "totalSessions": 13,
-      "salvageSessions": 11,
-      "miningSessions": 2,
+      "totalSessions": 0,
+      "salvageSessions": 0,
+      "miningSessions": 0,
       "totalProfit": 0
     },
     "activeWorkOrders": []
