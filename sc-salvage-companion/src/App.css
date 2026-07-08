@@ -6,6 +6,11 @@
   padding: 1.25rem;
 }
 
+.profile-shell {
+  place-items: stretch;
+  padding: 1.25rem;
+}
+
 .auth-paper {
   width: min(520px, 100%);
   padding: 1.4rem;
@@ -16,6 +21,11 @@
   display: grid;
   gap: 0.85rem;
   animation: slideIn 420ms ease-out;
+}
+
+.auth-paper.exiting {
+  animation: fadeOutCard 420ms ease forwards;
+  pointer-events: none;
 }
 
 .auth-kicker {
@@ -69,13 +79,54 @@
   font-size: 0.86rem;
 }
 
-.auth-form input {
+.remember-row {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.remember-row input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--brand);
+}
+
+.auth-form input,
+.auth-form select,
+.profile-setup-form input,
+.profile-setup-form select {
   border: 1px solid var(--panel-border);
   background: rgba(3, 12, 18, 0.85);
   border-radius: 10px;
   padding: 0.58rem 0.62rem;
   color: inherit;
   font: inherit;
+}
+
+.password-wrap {
+  position: relative;
+}
+
+.password-wrap input {
+  width: 100%;
+  padding-right: 4.2rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  cursor: pointer;
+  color: inherit;
 }
 
 .auth-form input:focus,
@@ -100,6 +151,265 @@
   transform: translateY(-1px);
 }
 
+.auth-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.84rem;
+}
+
+.profile-paper {
+  width: min(520px, 100%);
+  padding: 1.4rem;
+  border-radius: 18px;
+  border: 1px solid var(--panel-border);
+  background: linear-gradient(160deg, var(--panel-bg), rgba(255, 252, 240, 0.05));
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.25);
+  display: grid;
+  gap: 0.9rem;
+  animation: fadeInCard 420ms ease;
+}
+
+.profile-page {
+  width: 100%;
+  min-height: calc(100vh - 2.5rem);
+  max-width: none;
+  border-radius: 22px;
+  align-content: start;
+}
+
+.profile-more-button {
+  width: fit-content;
+  padding: 0.38rem 0.72rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-grid div {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.68rem;
+  justify-items: start;
+  text-align: left;
+}
+
+.profile-grid span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.profile-grid strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  justify-self: start;
+  text-align: left;
+}
+
+.owned-ships-section {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.financial-section {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.sessions-section {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.sessions-section h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.financial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.financial-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.financial-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.financial-grid div,
+.sessions-grid div {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.55rem 0.65rem;
+}
+
+.financial-grid span,
+.sessions-grid span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.owned-ships-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.owned-ships-section h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.owned-ships-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.owned-ships-list li {
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  padding: 0.52rem 0.7rem;
+  font-size: 0.86rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.owned-ships-list li span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.add-ship-button {
+  padding: 0.42rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+.ship-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 11, 18, 0.58);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 20;
+}
+
+.ship-overlay-paper {
+  width: min(460px, 100%);
+  padding: 1rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: linear-gradient(160deg, var(--panel-bg), rgba(255, 252, 240, 0.06));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ship-overlay-paper h2 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.ship-overlay-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.ship-cancel {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.profile-footer-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.7rem;
+}
+
+.logout-button {
+  background: linear-gradient(180deg, rgba(255, 95, 95, 0.28), rgba(255, 95, 95, 0.1));
+  border-color: rgba(255, 126, 126, 0.45);
+}
+
+.profile-setup-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.profile-setup-form label {
+  display: grid;
+  gap: 0.24rem;
+  font-size: 0.86rem;
+}
+
+@keyframes fadeOutCard {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes fadeInCard {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -111,18 +421,32 @@
   }
 }
 
-@media (max-width: 1200px) {
-  .workspace-grid {
-    grid-template-columns: 280px minmax(0, 1fr);
-  }
-
-  .intel-panel {
-    grid-column: 1 / -1;
-  }
-}
-
 @media (max-width: 920px) {
   .auth-shell {
     padding: 0.8rem;
+  }
+
+  .profile-page {
+    min-height: calc(100vh - 1.6rem);
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .owned-ships-list {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .financial-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sessions-grid {
+    grid-template-columns: 1fr;
   }
 }

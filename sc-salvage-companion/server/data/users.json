@@ -1,0 +1,21 @@
+[
+  {
+    "id": "04e693b6768ef6e0d90293df",
+    "callsign": "Nehthys",
+    "email": "acps4gaming@gmail.com",
+    "passwordHash": "8e5a4a5b6f0702f2d9efa40b6399d9633f561f309bec2ca90cb65176ffad56a6cc3483366351e9f0f43a6bb018ca99d10c658c428bf84573b50846fbe0bc43db",
+    "passwordSalt": "e67adcbbcc84dd714532ace41de93c33",
+    "createdAt": "2026-07-08T04:50:00.000Z",
+    "nickname": "Nehthys",
+    "role": "Salvager",
+    "ship": "Vulture",
+    "ownedShips": [
+      {
+        "id": "1783486234545-ikcnwz",
+        "name": "Vulture",
+        "cargoCapacity": 0,
+        "functionLabel": "Primary"
+      }
+    ]
+  }
+]
