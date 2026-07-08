@@ -41,6 +41,7 @@ type SessionExpense = {
   processingType?: string
   functioningTimeMinutes?: number
   startedAt?: number
+  linkedWorkOrderId?: string
 }
 
 type ActiveSession = {
@@ -249,8 +250,14 @@ function defaultSessions(): SessionMetrics {
   }
 }
 
-function generateSessionName(sessionType: (typeof SESSION_TYPES)[number], sessionNumber: number): string {
-  return `${sessionType} Session ${sessionNumber}`
+function generateSessionName(now: Date = new Date()): string {
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const randomThreeDigits = Math.floor(100 + Math.random() * 900)
+  return `Session-${year}${month}${day}-${hours}${minutes}-${randomThreeDigits}`
 }
 
 function createOwnedShip(name: string, cargoCapacity: number, functionLabel: string): OwnedShip {
@@ -275,6 +282,7 @@ function createWorkOrderExpense(
   location: string,
   cost: number,
   functioningTimeMinutes: number,
+  linkedWorkOrderId?: string,
 ): SessionExpense {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -284,6 +292,17 @@ function createWorkOrderExpense(
     processingType,
     functioningTimeMinutes,
     startedAt: Date.now(),
+    linkedWorkOrderId,
+  }
+}
+
+function createActiveWorkOrder(location: string, type: string, functioningTimeMinutes: number): ActiveWorkOrder {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    location,
+    type,
+    startedAt: Date.now(),
+    functioningTimeMinutes,
   }
 }
 
@@ -461,6 +480,7 @@ function App() {
   const [sessionError, setSessionError] = useState('')
   const [showStartSessionOverlay, setShowStartSessionOverlay] = useState(false)
   const [sessionTypeInput, setSessionTypeInput] = useState<(typeof SESSION_TYPES)[number]>('Salvage')
+  const [sessionNameInput, setSessionNameInput] = useState('')
   const [activeSessionName, setActiveSessionName] = useState('Salvage Session 1')
   const [activeSessionExpenses, setActiveSessionExpenses] = useState<SessionExpense[]>([])
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
@@ -472,6 +492,11 @@ function App() {
   const [expenseLocationInput, setExpenseLocationInput] = useState<string>(REFINERY_STATION_OPTIONS[0])
   const [expenseProcessingTypeInput, setExpenseProcessingTypeInput] = useState<(typeof WORK_ORDER_PROCESSING_TYPES)[number]>('Dinyx Solventation')
   const [expenseFunctioningTimeInput, setExpenseFunctioningTimeInput] = useState(WORK_ORDER_PROCESSING_MAP['Dinyx Solventation'].functioningTimeMinutes)
+  const [showSoldWorkOrderOverlay, setShowSoldWorkOrderOverlay] = useState(false)
+  const [soldWorkOrderId, setSoldWorkOrderId] = useState<string | null>(null)
+  const [soldAmountInput, setSoldAmountInput] = useState(0)
+  const [soldQuantityScuInput, setSoldQuantityScuInput] = useState(1)
+  const [soldWorkOrderError, setSoldWorkOrderError] = useState('')
   const [trackerNow, setTrackerNow] = useState(Date.now())
   const [sessionTableSortKey, setSessionTableSortKey] = useState<SessionTableSortKey>('type')
   const [sessionTableSortDirection, setSessionTableSortDirection] = useState<'asc' | 'desc'>('asc')
@@ -725,6 +750,21 @@ function App() {
     loadSessionIntoTracker(nextSession)
   }
 
+  function closeActiveSession(sessionId: string) {
+    const isCurrentSession = currentSessionId === sessionId
+    setActiveSessions((current) => current.filter((session) => session.id !== sessionId))
+
+    if (isCurrentSession) {
+      setCurrentSessionId(null)
+      setActiveSessionExpenses([])
+      setShowAddExpenseOverlay(false)
+      setShowSoldWorkOrderOverlay(false)
+      setAuthView('profile')
+    }
+
+    setSessionError('')
+  }
+
   async function completeActiveWorkOrder(workOrderId: string) {
     if (!profile) {
       return
@@ -763,6 +803,96 @@ function App() {
     setSessionError('')
   }
 
+  function openSoldWorkOrderOverlay(workOrderId: string) {
+    setSoldWorkOrderId(workOrderId)
+    setSoldAmountInput(0)
+    setSoldQuantityScuInput(1)
+    setSoldWorkOrderError('')
+    setShowSoldWorkOrderOverlay(true)
+  }
+
+  function closeSoldWorkOrderOverlay() {
+    setShowSoldWorkOrderOverlay(false)
+    setSoldWorkOrderId(null)
+    setSoldWorkOrderError('')
+  }
+
+  async function submitSoldWorkOrder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!profile || !soldWorkOrderId) {
+      setSoldWorkOrderError('Work order is not available.')
+      return
+    }
+
+    if (soldAmountInput < 0) {
+      setSoldWorkOrderError('Sold amount cannot be negative.')
+      return
+    }
+
+    if (soldQuantityScuInput <= 0) {
+      setSoldWorkOrderError('Quantity must be greater than zero SCU.')
+      return
+    }
+
+    const roundedSoldAmount = Math.round(soldAmountInput)
+    const roundedQuantityScu = Math.round(soldQuantityScuInput)
+    const nextUser: UserProfile = {
+      ...profile,
+      financial: {
+        ...profile.financial,
+        currentBalance: profile.financial.currentBalance + roundedSoldAmount,
+        totalEarnings: profile.financial.totalEarnings + roundedSoldAmount,
+      },
+      activeWorkOrders: profile.activeWorkOrders.filter((workOrder) => workOrder.id !== soldWorkOrderId),
+    }
+
+    setProfile(nextUser)
+    persistProfile(nextUser)
+
+    try {
+      const workOrderResponse = await fetch('/api/profile/update-work-orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: nextUser.email,
+          activeWorkOrders: nextUser.activeWorkOrders,
+        }),
+      })
+
+      if (!workOrderResponse.ok) {
+        const data = (await workOrderResponse.json()) as { error?: string }
+        setSoldWorkOrderError(data.error ?? 'Saved locally, but could not sync sold work order.')
+        return
+      }
+
+      const financialResponse = await fetch('/api/profile/update-financial', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: nextUser.email,
+          financial: nextUser.financial,
+        }),
+      })
+
+      if (!financialResponse.ok) {
+        const data = (await financialResponse.json()) as { error?: string }
+        setSoldWorkOrderError(data.error ?? 'Saved locally, but could not sync sale earnings.')
+        return
+      }
+    } catch {
+      setSoldWorkOrderError('Saved locally, but could not sync sold work order.')
+      return
+    }
+
+    setSessionError(`Recorded sale: ${roundedQuantityScu} SCU for ${toAuec(roundedSoldAmount)}.`)
+    closeSoldWorkOrderOverlay()
+  }
+
   function logout() {
     localStorage.removeItem(AUTH_STORAGE_KEY)
     sessionStorage.removeItem(AUTH_STORAGE_KEY)
@@ -779,6 +909,7 @@ function App() {
     setShowAddShipOverlay(false)
     setShowFinancialOverlay(false)
     setShowMoreOverlay(false)
+    setShowSoldWorkOrderOverlay(false)
     setActiveSessions([])
     setCurrentSessionId(null)
   }
@@ -1040,6 +1171,7 @@ function App() {
 
   async function startNewSession() {
     setSessionTypeInput('Salvage')
+    setSessionNameInput(generateSessionName())
     setSessionError('')
     setShowStartSessionOverlay(true)
   }
@@ -1143,8 +1275,7 @@ function App() {
     const normalizedSessionType = sessionTypeInput.toLowerCase()
     const isSalvageSession = normalizedSessionType === 'salvage'
     const isMiningSession = normalizedSessionType === 'mining'
-    const nextSessionNumber = (profile.sessions?.totalSessions ?? 0) + 1
-    const nextSessionName = generateSessionName(sessionTypeInput, nextSessionNumber)
+    const nextSessionName = sessionNameInput.trim() || generateSessionName()
 
     const nextUser: UserProfile = {
       ...profile,
@@ -1193,7 +1324,7 @@ function App() {
     setShowStartSessionOverlay(false)
   }
 
-  function submitAddExpense(event: FormEvent<HTMLFormElement>) {
+  async function submitAddExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (expenseCostInput < 0) {
@@ -1202,6 +1333,7 @@ function App() {
     }
 
     let nextExpense: SessionExpense
+    let nextWorkOrder: ActiveWorkOrder | null = null
 
     if (expenseTypeInput === 'Work Orders') {
       const location = expenseLocationInput.trim()
@@ -1222,11 +1354,20 @@ function App() {
         return
       }
 
+      if (!profile) {
+        setExpenseError('Profile not loaded.')
+        return
+      }
+
+      const normalizedFunctioningTime = Math.round(expenseFunctioningTimeInput)
+
+      nextWorkOrder = createActiveWorkOrder(location, processingType, normalizedFunctioningTime)
       nextExpense = createWorkOrderExpense(
         processingType,
         location,
         Math.round(expenseCostInput),
-        Math.round(expenseFunctioningTimeInput),
+        normalizedFunctioningTime,
+        nextWorkOrder.id,
       )
     } else {
       nextExpense = createSessionExpense(expenseTypeInput, Math.round(expenseCostInput))
@@ -1241,8 +1382,104 @@ function App() {
       )
       return nextExpenses
     })
+
+    if (nextWorkOrder && profile) {
+      const nextUser: UserProfile = {
+        ...profile,
+        activeWorkOrders: [...profile.activeWorkOrders, nextWorkOrder],
+      }
+
+      setProfile(nextUser)
+      persistProfile(nextUser)
+
+      try {
+        const response = await fetch('/api/profile/update-work-orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: nextUser.email,
+            activeWorkOrders: nextUser.activeWorkOrders,
+          }),
+        })
+
+        if (!response.ok) {
+          const data = (await response.json()) as { error?: string }
+          setSessionError(data.error ?? 'Saved locally, but could not sync active work orders.')
+        } else {
+          setSessionError('')
+        }
+      } catch {
+        setSessionError('Saved locally, but could not sync active work orders.')
+      }
+    }
+
     setExpenseError('')
     setShowAddExpenseOverlay(false)
+  }
+
+  async function removeSessionExpense(expenseId: string) {
+    const expenseToRemove = activeSessionExpenses.find((expense) => expense.id === expenseId)
+    if (!expenseToRemove) {
+      return
+    }
+
+    const nextExpenses = activeSessionExpenses.filter((expense) => expense.id !== expenseId)
+    setActiveSessionExpenses(nextExpenses)
+    setActiveSessions((sessions) =>
+      sessions.map((session) =>
+        session.id === currentSessionId ? { ...session, expenses: nextExpenses } : session,
+      ),
+    )
+
+    if (expenseToRemove.type === 'Work Orders' && profile) {
+      const workOrderIdToRemove =
+        expenseToRemove.linkedWorkOrderId ??
+        profile.activeWorkOrders.find(
+          (workOrder) =>
+            workOrder.location === expenseToRemove.location && workOrder.type === expenseToRemove.processingType,
+        )?.id
+
+      if (!workOrderIdToRemove) {
+        setSessionError('')
+        return
+      }
+
+      const nextUser: UserProfile = {
+        ...profile,
+        activeWorkOrders: profile.activeWorkOrders.filter(
+          (workOrder) => workOrder.id !== workOrderIdToRemove,
+        ),
+      }
+
+      setProfile(nextUser)
+      persistProfile(nextUser)
+
+      try {
+        const response = await fetch('/api/profile/update-work-orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: nextUser.email,
+            activeWorkOrders: nextUser.activeWorkOrders,
+          }),
+        })
+
+        if (!response.ok) {
+          const data = (await response.json()) as { error?: string }
+          setSessionError(data.error ?? 'Expense removed locally, but could not sync work order removal.')
+          return
+        }
+      } catch {
+        setSessionError('Expense removed locally, but could not sync work order removal.')
+        return
+      }
+    }
+
+    setSessionError('')
   }
 
 
@@ -1255,6 +1492,7 @@ function App() {
   const netProfit = grossRevenue - totalSessionExpenses
   const activeSessionCount = activeSessions.length
   const activeWorkOrders = profile?.activeWorkOrders ?? []
+  const canAddExpense = Boolean(currentSessionId && activeSessions.some((session) => session.id === currentSessionId))
   const sortedSessionExpenses = [...activeSessionExpenses].sort((left, right) => {
     const leftValue = getSessionExpenseSortValue(left, sessionTableSortKey)
     const rightValue = getSessionExpenseSortValue(right, sessionTableSortKey)
@@ -1442,9 +1680,13 @@ function App() {
           <p className="auth-subhead">Track expenses and profit for the current run.</p>
 
           <div className="session-tracker-actions">
-            <button type="button" className="auth-submit add-ship-button" onClick={openAddExpenseOverlay}>
-              Add Expense
-            </button>
+            {canAddExpense ? (
+              <button type="button" className="auth-submit add-ship-button" onClick={openAddExpenseOverlay}>
+                Add Expense
+              </button>
+            ) : (
+              <p className="auth-subhead">Session is closed. Add Expense is unavailable.</p>
+            )}
           </div>
 
           <section className="active-work-orders-section">
@@ -1464,12 +1706,12 @@ function App() {
                         {getWorkOrderRemainingSeconds(workOrder) === 0 ? (
                           <button
                             type="button"
-                            className="complete-work-order-button"
+                            className="sold-work-order-button"
                             onClick={() => {
-                              void completeActiveWorkOrder(workOrder.id)
+                              openSoldWorkOrderOverlay(workOrder.id)
                             }}
                           >
-                            Complete
+                            Sold
                           </button>
                         ) : (
                           <span className="work-order-running-label">Running</span>
@@ -1542,11 +1784,12 @@ function App() {
                       Functioning Time
                     </button>
                   </th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td colSpan={4} className="session-row-title">Expenses</td>
+                  <td colSpan={5} className="session-row-title">Expenses</td>
                 </tr>
                 {sortedSessionExpenses.length > 0 ? (
                   sortedSessionExpenses.map((expense) => (
@@ -1555,11 +1798,22 @@ function App() {
                       <td>{getSessionExpenseDescription(expense)}</td>
                       <td className="session-amount-expense">{expense.cost.toLocaleString()}</td>
                       <td>{expense.type === 'Work Orders' ? formatRemainingTime(expense) : '-'}</td>
+                      <td className="expense-action-cell">
+                        <button
+                          type="button"
+                          className="remove-expense-button"
+                          onClick={() => {
+                            void removeSessionExpense(expense.id)
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4}>No expenses added yet.</td>
+                    <td colSpan={5}>No expenses added yet.</td>
                   </tr>
                 )}
                 <tr>
@@ -1567,20 +1821,23 @@ function App() {
                   <td>Sum of all session expense entries</td>
                   <td className="session-amount-expense">{totalSessionExpenses.toLocaleString()}</td>
                   <td>-</td>
+                  <td>-</td>
                 </tr>
                 <tr>
-                  <td colSpan={4} className="session-row-title">Profit</td>
+                  <td colSpan={5} className="session-row-title">Profit</td>
                 </tr>
                 <tr>
                   <td>Gross Revenue</td>
                   <td>Total sale value from session outputs</td>
                   <td className="session-amount-profit">{grossRevenue.toLocaleString()}</td>
                   <td>-</td>
+                  <td>-</td>
                 </tr>
                 <tr>
                   <td>Net Profit</td>
                   <td>Gross revenue minus total expenses</td>
                   <td className="session-amount-profit">{netProfit.toLocaleString()}</td>
+                  <td>-</td>
                   <td>-</td>
                 </tr>
               </tbody>
@@ -1683,6 +1940,49 @@ function App() {
                     </button>
                     <button type="submit" className="auth-submit">
                       Save Expense
+                    </button>
+                  </div>
+                </form>
+              </article>
+            </div>
+          ) : null}
+
+          {showSoldWorkOrderOverlay ? (
+            <div className="ship-overlay" role="dialog" aria-modal="true" aria-label="Sold Work Order">
+              <article className="ship-overlay-paper">
+                <p className="auth-kicker">Work Order Completed</p>
+                <h2>Record Sale</h2>
+                <form className="profile-setup-form" onSubmit={submitSoldWorkOrder}>
+                  <label>
+                    Sold Amount (aUEC)
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={soldAmountInput}
+                      onChange={(event) => setSoldAmountInput(Number(event.target.value))}
+                    />
+                  </label>
+
+                  <label>
+                    Quantity (SCU)
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={soldQuantityScuInput}
+                      onChange={(event) => setSoldQuantityScuInput(Number(event.target.value))}
+                    />
+                  </label>
+
+                  {soldWorkOrderError ? <p className="auth-error">{soldWorkOrderError}</p> : null}
+
+                  <div className="ship-overlay-actions">
+                    <button type="button" className="auth-submit ship-cancel" onClick={closeSoldWorkOrderOverlay}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="auth-submit sold-work-order-button">
+                      Save Sale
                     </button>
                   </div>
                 </form>
@@ -1839,13 +2139,22 @@ function App() {
                               </div>
                             ) : null}
                           </div>
-                          <button
-                            type="button"
-                            className="auth-submit add-ship-button"
-                            onClick={() => openActiveSessionView(session.id)}
-                          >
-                            View
-                          </button>
+                          <div className="active-session-actions">
+                            <button
+                              type="button"
+                              className="auth-submit add-ship-button"
+                              onClick={() => openActiveSessionView(session.id)}
+                            >
+                              View
+                            </button>
+                            <button
+                              type="button"
+                              className="auth-submit ship-cancel"
+                              onClick={() => closeActiveSession(session.id)}
+                            >
+                              Close Session
+                            </button>
+                          </div>
                         </li>
                       )
                     })}
@@ -1868,8 +2177,8 @@ function App() {
                   <label>
                     Session Name
                     <input
-                      value={generateSessionName(sessionTypeInput, (profile?.sessions?.totalSessions ?? 0) + 1)}
-                      readOnly
+                      value={sessionNameInput}
+                      onChange={(event) => setSessionNameInput(event.target.value)}
                     />
                   </label>
 

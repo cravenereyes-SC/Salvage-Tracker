@@ -29,8 +29,8 @@
       "totalCosts": 0
     },
     "sessions": {
-      "totalSessions": 0,
-      "salvageSessions": 0,
+      "totalSessions": 2,
+      "salvageSessions": 2,
       "miningSessions": 0,
       "totalProfit": 0
     },

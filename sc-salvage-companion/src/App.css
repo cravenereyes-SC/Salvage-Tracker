@@ -352,6 +352,11 @@
   font-size: 0.78rem;
 }
 
+.active-session-actions {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .active-work-orders-section {
   display: grid;
   gap: 0.5rem;
@@ -422,6 +427,20 @@
 }
 
 .complete-work-order-button:hover {
+  filter: brightness(1.05);
+}
+
+.sold-work-order-button {
+  border: 1px solid rgba(54, 179, 126, 0.6);
+  background: linear-gradient(180deg, rgba(54, 179, 126, 0.32), rgba(54, 179, 126, 0.14));
+  color: #dbffe9;
+  border-radius: 10px;
+  padding: 0.48rem 0.72rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sold-work-order-button:hover {
   filter: brightness(1.05);
 }
 
@@ -536,6 +555,21 @@
 
 .session-amount-profit {
   color: var(--success);
+}
+
+.expense-action-cell {
+  text-align: right;
+}
+
+.remove-expense-button {
+  border: 1px solid rgba(255, 126, 126, 0.45);
+  background: linear-gradient(180deg, rgba(255, 95, 95, 0.28), rgba(255, 95, 95, 0.1));
+  color: var(--text);
+  border-radius: 8px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.1;
+  cursor: pointer;
 }
 
 .owned-ships-header {

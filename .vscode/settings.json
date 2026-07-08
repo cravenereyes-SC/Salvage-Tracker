@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass; cd \"c:\\\\Users\\\\crave\\\\OneDrive\\\\Salvage Tracker\\\\sc-salvage-companion\"; npm run build; npm run lint$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
