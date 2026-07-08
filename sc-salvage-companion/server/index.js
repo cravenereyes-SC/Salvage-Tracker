@@ -64,7 +64,6 @@ function sanitizeUser(user) {
     callsign: user.callsign,
     email: user.email,
     createdAt: user.createdAt,
-    nickname: user.nickname,
     role: user.role,
     ship: user.ship,
     ownedShips: Array.isArray(user.ownedShips) ? user.ownedShips : [],
@@ -87,10 +86,10 @@ function issueToken() {
 }
 
 app.post('/api/auth/register', async (req, res) => {
-  const { callsign, email, password, nickname, role, ship, ownedShips, financial, sessions } = req.body ?? {}
+  const { callsign, email, password, role, ship, ownedShips, financial, sessions } = req.body ?? {}
 
   const normalizedEmail = normalizeEmail(email)
-  if (!normalizedEmail || !password || !callsign || !nickname || !role || !ship) {
+  if (!normalizedEmail || !password || !callsign || !role || !ship) {
     return res.status(400).json({ error: 'Missing required registration fields.' })
   }
 
@@ -109,7 +108,6 @@ app.post('/api/auth/register', async (req, res) => {
     passwordHash: hash,
     passwordSalt: salt,
     createdAt,
-    nickname: String(nickname).trim(),
     role: String(role).trim(),
     ship: String(ship).trim(),
     ownedShips: Array.isArray(ownedShips) ? ownedShips : [],

@@ -29,7 +29,6 @@ type UserProfile = {
   callsign: string
   email: string
   createdAt: string
-  nickname: string
   role: string
   ship: string
   ownedShips: OwnedShip[]
@@ -189,7 +188,6 @@ function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [authToken, setAuthToken] = useState('')
   const [authStorageType, setAuthStorageType] = useState<SessionStorageType>('session')
-  const [setupNickname, setSetupNickname] = useState('')
   const [setupRole, setSetupRole] = useState(ROLE_CHOICES[0])
   const [setupShip, setSetupShip] = useState('')
   const [setupError, setSetupError] = useState('')
@@ -249,14 +247,12 @@ function App() {
         callsign: nextCallsign,
         email,
         createdAt: new Date().toISOString(),
-        nickname: nextCallsign,
         role: setupRole,
         ship: '',
         ownedShips: [],
         financial: defaultFinancial(),
         sessions: defaultSessions(),
       })
-      setSetupNickname(nextCallsign)
       setSetupRole(ROLE_CHOICES[0])
       setSetupShip('')
       setSetupError('')
@@ -310,11 +306,6 @@ function App() {
   async function viewProfileFromSetup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!setupNickname.trim()) {
-      setSetupError('Nickname is required.')
-      return
-    }
-
     if (!setupShip.trim()) {
       setSetupError('Ship selection is required.')
       return
@@ -332,7 +323,6 @@ function App() {
           callsign,
           email,
           password,
-          nickname: setupNickname.trim(),
           role: setupRole,
           ship: setupShip.trim(),
           ownedShips: [ownedShip],
@@ -718,20 +708,10 @@ function App() {
           <p className="auth-kicker">First-Time Profile Setup</p>
           <h1>Set Up Your Pilot Profile</h1>
           <p className="auth-subhead">
-            Choose your nickname, role, and primary ship before entering your profile.
+            Choose your role and primary ship before entering your profile.
           </p>
 
           <form className="profile-setup-form" onSubmit={viewProfileFromSetup}>
-            <label>
-              Nickname
-              <input
-                required
-                value={setupNickname}
-                onChange={(event) => setSetupNickname(event.target.value)}
-                placeholder="ScrapHawk"
-              />
-            </label>
-
             <label>
               Role
               <select
@@ -771,7 +751,7 @@ function App() {
       ) : (
         <article className="profile-paper profile-page">
           <p className="auth-kicker">User Profile</p>
-          <h1>{profile?.nickname || profile?.callsign || 'Pilot'}</h1>
+          <h1>{profile?.callsign || 'Pilot'}</h1>
           <button type="button" className="auth-submit profile-more-button" onClick={openMoreOverlay}>
             More
           </button>
@@ -779,10 +759,6 @@ function App() {
             Personal command profile for your Star Citizen operations.
           </p>
           <div className="profile-grid">
-            <div>
-              <span>Nickname</span>
-              <strong>{profile?.nickname ?? 'Pilot'}</strong>
-            </div>
             <div>
               <span>Callsign</span>
               <strong>{profile?.callsign ?? 'Unknown'}</strong>
