@@ -12,9 +12,10 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "build:server:bundle": "esbuild server/index.js --bundle --platform=node --format=esm --target=node18 --outfile=build/server.mjs",
+    "build:windows:assets": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-installer-assets.ps1",
     "build:windows:launcher": "npm run build && npm run build:server:bundle && pkg build/server.mjs --targets node18-win-x64 --output release/win-app/SCSalvageCompanion.exe",
     "build:windows:uninstaller": "pkg scripts/windows-uninstaller-entry.cjs --targets node18-win-x64 --output release/win-app/SCSalvageCompanion-Uninstall.exe",
-    "build:windows:installer": "npm run build:windows:launcher && npm run build:windows:uninstaller && node scripts/create-windows-installer.mjs",
+    "build:windows:installer": "npm run build:windows:assets && npm run build:windows:launcher && npm run build:windows:uninstaller && node scripts/create-windows-installer.mjs",
     "build:windows": "npm run build:windows:installer"
   },
   "dependencies": {

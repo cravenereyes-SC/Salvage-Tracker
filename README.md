@@ -37,6 +37,9 @@ Build both the installer EXE and app launcher EXE:
 npm run build:windows
 ```
 
+Prerequisite for installer build:
+- Install NSIS (makensis): https://nsis.sourceforge.io/Download
+
 Generated artifacts:
 - `release/SCSalvageCompanion-Setup.exe` - installer EXE that installs the app and creates a desktop shortcut.
 - `release/win-app/SCSalvageCompanion.exe` - standalone launcher EXE for the app runtime.
@@ -48,6 +51,15 @@ Install behavior:
 - Creates Start Menu folder: `SC Salvage Companion`
 - Creates Start Menu shortcuts for launch and uninstall
 - Launches the app after install
+
+Installer branding customization:
+- Update `scripts/windows-installer.nsi` to adjust title/body fonts and palette used on the branded setup page.
+- Theme colors currently mirror app variables from `src/index.css` (`--page-bg`, `--text`, `--brand`).
+- Branded setup assets are in `scripts/installer-assets/`:
+  - `app-icon.ico` (installer/window icon)
+  - `wizard.bmp` (welcome/finish side image)
+  - `header.bmp` (header image)
+- Regenerate branded assets anytime with `npm run build:windows:assets`.
 
 ## Beta Deployment (Single Service)
 

@@ -12,7 +12,7 @@ const appSourceDir = path.join(releaseRoot, 'win-app')
 const frontendDistDir = path.join(projectRoot, 'dist')
 const installerPayloadDir = path.join(projectRoot, 'build', 'installer-payload')
 const installerPayloadZip = path.join(projectRoot, 'build', 'installer-payload.zip')
-const installerPkgConfigPath = path.join(projectRoot, 'build', 'pkg-installer.json')
+const installerScriptPath = path.join(projectRoot, 'scripts', 'windows-installer.nsi')
 const launcherExePath = path.join(appSourceDir, 'SCSalvageCompanion.exe')
 const uninstallerExePath = path.join(appSourceDir, 'SCSalvageCompanion-Uninstall.exe')
 const outputSetupExe = path.join(releaseRoot, 'SCSalvageCompanion-Setup.exe')
@@ -29,7 +29,7 @@ function runOrThrow(command, args) {
   const result = spawnSync(command, args, {
     cwd: projectRoot,
     stdio: 'inherit',
-    shell: process.platform === 'win32',
+    shell: false,
   })
 
   if (result.error) {
@@ -39,6 +39,46 @@ function runOrThrow(command, args) {
   if (result.status !== 0) {
     throw new Error(`${command} exited with code ${result.status}.`)
   }
+}
+
+function resolveMakensisPath() {
+  const candidates = [
+    'makensis',
+    path.join('C:\\Program Files (x86)', 'NSIS', 'makensis.exe'),
+    path.join('C:\\Program Files', 'NSIS', 'makensis.exe'),
+  ]
+
+  for (const candidate of candidates) {
+    const result = spawnSync(candidate, ['/VERSION'], {
+      cwd: projectRoot,
+      stdio: 'ignore',
+      shell: false,
+      windowsHide: true,
+    })
+
+    if (!result.error && result.status === 0) {
+      return candidate
+    }
+  }
+
+  throw new Error(
+    [
+      'NSIS (makensis) is required to build the Windows installer.',
+      'Install NSIS from https://nsis.sourceforge.io/Download and re-run npm run build:windows.',
+    ].join(' '),
+  )
+}
+
+function compileInstallerWithNsis() {
+  const makensisPath = resolveMakensisPath()
+  const args = [
+    `/DPROJECT_ROOT=${projectRoot}`,
+    `/DPAYLOAD_ZIP=${installerPayloadZip}`,
+    `/DOUTPUT_EXE=${outputSetupExe}`,
+    installerScriptPath,
+  ]
+
+  runOrThrow(makensisPath, args)
 }
 
 async function stageInstallerPayload() {
@@ -67,28 +107,8 @@ async function stageInstallerPayload() {
 
 async function main() {
   await stageInstallerPayload()
-
-  const installerPkgConfig = {
-    name: 'sc-salvage-companion-installer',
-    version: '1.0.0',
-    private: true,
-    bin: 'scripts/windows-installer-entry.cjs',
-    pkg: {
-      assets: ['build/installer-payload.zip'],
-    },
-  }
-  await fs.writeFile(installerPkgConfigPath, `${JSON.stringify(installerPkgConfig, null, 2)}\n`, 'utf8')
-
-  runOrThrow('npx', [
-    'pkg',
-    'scripts/windows-installer-entry.cjs',
-    '--config',
-    'build/pkg-installer.json',
-    '--targets',
-    'node18-win-x64',
-    '--output',
-    'release/SCSalvageCompanion-Setup.exe',
-  ])
+  await ensureExists(installerScriptPath, 'NSIS installer script')
+  compileInstallerWithNsis()
 
   await ensureExists(outputSetupExe, 'Setup executable')
   console.log(`Created setup executable: ${outputSetupExe}`)
