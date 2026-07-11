@@ -92,7 +92,7 @@ Section "Install"
   File "/oname=payload.zip" "${PAYLOAD_ZIP}"
 
   DetailPrint "Extracting packaged application files..."
-  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath $\"$INSTDIR\payload.zip$\" -DestinationPath $\"$INSTDIR$\" -Force"'
+  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path $\"$INSTDIR\payload.zip$\" -DestinationPath $\"$INSTDIR$\" -Force"'
   Pop $0
   ${If} $0 != "0"
     MessageBox MB_ICONSTOP|MB_OK "Could not extract application files. Setup will now exit."
