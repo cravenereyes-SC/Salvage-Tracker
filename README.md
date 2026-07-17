@@ -1,4 +1,4 @@
-# SC Salvage Companion
+# SC Salvage Companion will add a web based version soon for release
 
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Lint](https://img.shields.io/badge/lint-passing-brightgreen)
