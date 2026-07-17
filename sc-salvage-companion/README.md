@@ -65,6 +65,17 @@ Installer branding customization:
 
 The backend now serves frontend static files in production, so you can deploy one service for both UI and API.
 
+Release validation command:
+
+```bash
+npm run beta:web:check
+```
+
+This command runs:
+- `npm run build`
+- `npm run lint`
+- automated smoke test against `/` and `/api/health`
+
 Recommended settings:
 - Build command: `npm ci ; npm run build`
 - Start command: `npm run server:start`
@@ -72,6 +83,11 @@ Recommended settings:
   - `NODE_ENV=production`
   - `PORT` is provided by host (or set manually)
   - optional `CORS_ORIGIN` (comma-separated), defaults to `http://localhost:5173`
+  - `OPEN_BROWSER=0`
+
+Deployment artifacts included in repo:
+- `render.yaml` (Render service blueprint)
+- `.env.example` (runtime environment template)
 
 ### Render Example
 
@@ -84,15 +100,14 @@ Recommended settings:
 
 ## Beta Release Checklist
 
-1. `npm run build`
-2. `npm run lint`
-3. Smoke test:
+1. `npm run beta:web:check`
+2. Manual smoke test:
    - login/register
    - start session
    - add work order expense
    - timer updates
    - sold flow updates financials
-4. Tag release in git:
+3. Tag release in git:
 
 ```bash
 git add .
@@ -101,4 +116,4 @@ git tag -a v0.1.0-beta.1 -m "Beta 1"
 git push origin main --tags
 ```
 
-5. Create GitHub Release from `v0.1.0-beta.1` with tester notes and known issues.
+4. Create GitHub Release from `v0.1.0-beta.1` with tester notes and known issues.

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sc-salvage-companion-beta
+    env: node
+    buildCommand: npm ci ; npm run build
+    startCommand: npm run server:start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPEN_BROWSER
+        value: "0"

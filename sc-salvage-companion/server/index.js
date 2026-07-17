@@ -2,6 +2,7 @@ import cors from 'cors'
 import express from 'express'
 import { exec } from 'node:child_process'
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,6 +17,7 @@ const DATA_DIR = isPackagedExecutable
 const USERS_FILE = path.join(DATA_DIR, 'users.json')
 const DIST_DIR = isPackagedExecutable ? path.join(appRuntimeDir, 'dist') : path.join(__dirname, '..', 'dist')
 const PORT = Number(process.env.PORT) || 8787
+const shouldServeFrontend = process.env.NODE_ENV === 'production' || existsSync(DIST_DIR)
 const cargoCapacityCache = new Map()
 
 const app = express()
@@ -503,7 +505,7 @@ app.get('/api/health', (_req, res) => {
   res.status(200).json({ ok: true })
 })
 
-if (process.env.NODE_ENV === 'production') {
+if (shouldServeFrontend) {
   app.use(express.static(DIST_DIR))
 
   app.get(/^(?!\/api).*/, async (_req, res) => {
